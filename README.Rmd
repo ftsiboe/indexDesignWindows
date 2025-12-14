@@ -1,11 +1,13 @@
 ---
-title: "Replication Package: Hidden Safety Net of Underutilized Supplemental Insurance in US Agriculture"
+title: "Replication Package: PRF History redesign study"
 author: |
   Francis Tsiboe, Agricultural Risk Policy Center, North Dakota State University, Fargo, ND 58102  
 
-  Hunter Biram, Agricultural Economics & Agribusiness, University of Arkansas, Fayetteville, AR 72701  
+  Walker Davis, Oklahoma State
 
-  Amy Hagerman, Department of Agricultural Economics, Oklahoma State University, Stillwater, OK 74078  
+  Dylan Turner, Agricultural Risk Policy Center, North Dakota State University, Fargo, ND 58102  
+  
+  Lawson Connor, Agricultural Economics & Agribusiness, University of Arkansas, Fayetteville, AR 72701
 output:
   github_document:
     toc: false
@@ -24,9 +26,6 @@ knitr::opts_chunk$set(
   out.width = "100%"
 )
 
-if (!requireNamespace("badger", quietly = TRUE)) install.packages("badger")
-
-library(badger)
 library(knitr)
 library(dplyr)
 library(devtools)
@@ -38,8 +37,8 @@ devtools::document()
 <!-- badges: start -->
 [![Project Status: Active – Stable and actively developed](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![R-CMD-check](https://github.com/ftsiboe/HiddenSafetynet2025/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ftsiboe/HiddenSafetynet2025/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/ftsiboe/HiddenSafetynet2025/graph/badge.svg?token=VIMHQH2SEO)](https://codecov.io/gh/ftsiboe/HiddenSafetynet2025)
+[![R-CMD-check](https://github.com/ftsiboe/indexDesignWindows/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ftsiboe/indexDesignWindows/actions/workflows/R-CMD-check.yaml)
+[![codecov](https://codecov.io/gh/ftsiboe/indexDesignWindows/graph/badge.svg?token=D80ZPC3HRH)](https://codecov.io/gh/ftsiboe/indexDesignWindows)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 ![R >= 4.0](https://img.shields.io/badge/R-%3E=4.0-blue)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
@@ -47,72 +46,15 @@ devtools::document()
 
 **Acknowledgment:** The views expressed in this publication are solely those of the authors and do not reflect the official positions or policies of their affiliated institutions.
 
-**Abstract:** Many U.S. farmers, growers, and ranchers depend on federally subsidized crop insurance to manage production risks. However, even the most comprehensive policies typically trigger indemnities only after a 15% loss. Supplemental insurance products were introduced to bridge this gap but remain underutilized. Using 958,658 sub-county aggregated insurance transactions and applying recent calibration and simulation methods, our analysis shows that limited adoption of supplemental coverage leaves substantial benefits untapped. While base crop insurance provides foundational protection, integrating supplemental policies significantly enhances downside risk management and income smoothing. Despite higher associated premiums, benefit-per-premium ratios still support broader adoption of supplemental coverages.  
+**Abstract:**   
 
-**Keywords:** crop insurance; supplemental coverage; subsidies; insurance utilization  
+**Keywords:**   
 
-**JEL Codes:** Q12, Q14, Q18, G22, R52  
+**JEL Codes:** 
 
 ---
 
 **simulation Workflow**
-
-Here’s how these functions relate—think of them as a single pipeline that builds one simulation draw, 
-computes the base policy, layers on SCO/ECO endorsements in a few different ways, aggregates, and writes the result.
-
-dispatcher_supplemental_simulation()
- ├─ build_agent_simulation_data(year, sim, agents_dir)
- │    • Loads cleaned agent rows for {year}
- │    • Unnests per-draw yields/prices; filters to the requested draw(s)
- │    • Renames to canonical fields, adds expected/final county yields
- │    • Computes per-row revenue
- │    → returns agent-level simulation panel (data.table)
- │
- ├─ compute_base_policy_outcomes(cleaned_agents_data)
- │    • Using the panel above, computes: guarantees, insured_acres,
- │      liability, premiums (total/subsidy/producer), indemnity, revenue,
- │      price-risk adjusted guarantee, etc.
- │    → returns base policy rows (same keys + monetary outputs)
- │
- ├─ study_scenarios(year)
- │    • Defines the SCO/ECO “offerings” (plan code ↔ trigger ↔ subsidy factor)
- │    • Defines “full participation” SCO/ECO mixes to test
- │    → returns {offerings, full_participation}
- │
- ├─ (prep ADM)
- │    • Reads SCO/ECO ADM, filters to {year}, matches to base-policy keys,
- │      averages base_rate within key, drops invalid/zero rates
- │
- ├─ lapply(offerings, … compute_supplemental_factors())
- │    • For each offered endorsement (plan/trigger/subsidy):
- │      - Aligns plan codes (31–33, 51–53, 87–89 …) via offsets
- │      - Computes shallow-loss protection range, premium pieces,
- │        and endorsement indemnity
- │      - Emits scaled monetary fields with a `sup` label
- │    → returns stacked endorsement “factors” (data.table)
- │
- ├─ compute_supplemental_current(base_policy_data, supplemental_factors)
- │    • Uses the base rows’ `sco/eco90/eco95` weights
- │    • Keeps factors for {SCO8665, ECO9044, ECO9544}
- │    • Scales the endorsement $ by the matching weight, aggregates by keys
- │    • Appends base outcomes; labels combination = "Basic+CURRENT"
- │
- ├─ compute_supplemental_full(base_policy_data, supplemental_factors[picked], picks)
- │    • Takes a chosen set of sup labels (from study_scenarios$full_participation)
- │    • Fully aggregates those endorsement $ by keys
- │    • Appends base outcomes; labels "Basic+<joined picks>"
- │
- ├─ lapply(adoption_rate ∈ {5,…,100}, … compute_supplemental_incremental())
- │    • Joins `SCO8665` factors to base keys
- │    • Scales endorsement $ by (adoption_rate / 100)
- │    • Appends base outcomes; labels "Basic+ALTXXX"
- │
- ├─ (base-only rollup)
- │    • Aggregates base outcomes alone; labels "Basic only"
- │
- └─ rbind(base-only, current, full, incremental) → saveRDS("simXXX.rds")
-
-
 
 
 **📚 Citation**
