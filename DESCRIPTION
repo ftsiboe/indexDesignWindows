@@ -1,0 +1,30 @@
+Package: fcipRateRevisions
+Type: Package
+Title: indexDesignWindows
+Version: 0.0.0.9000
+Author: Francis Tsiboe [aut, cre] (<https://orcid.org/0000-0001-5984-1072>)
+Maintainer: Francis Tsiboe <ftsiboe@hotmail.com>
+Creator: Francis Tsiboe
+Description: Replication package for studies examining the impacts of rating revisions in United States agricultural insurance.
+  - Actuarial Impacts of Rating Revisions in United States Agricultural Insurance.
+  - Actuarial Updates and Taxpayer Costs in Subsidized Agricultural Insurance Programs.
+  - The Effect of Actuarial Updates on Private-to-Public Risk Transfers in Agricultural Insurance.
+License: GPL-3 + file LICENSE
+URL: https://github.com/ftsiboe/indexDesignWindows
+BugReports: https://github.com/ftsiboe/indexDesignWindows/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+VignetteBuilder: knitr
+Depends: R (>= 4.1.0)
+Imports: data.table, ggplot2
+Remotes: github::ftsiboe/rfcipDemand
+Suggests: dplyr, tidyr, knitr, rmarkdown,  withr, stats, rfcipDemand, piggyback, testthat (>= 3.0.0)
+LazyData: true
+Cite-us: If you find it useful, please consider staring the repository and citing the following studies
+  - Tsiboe, F. and Turner, D. (2025). "Incorporating buy‐up price loss coverage into the United States
+    farm safety net." Applied Economic Perspectives and Policy.
+  - Tsiboe, F., et al. (2025). "Risk reduction impacts of crop insurance in the United States."
+    Applied Economic Perspectives and Policy.
+  - Gaku, S. and Tsiboe, F. (2024). Evaluation of alternative farm safety net program combination
+    strategies. Agricultural Finance Review.
