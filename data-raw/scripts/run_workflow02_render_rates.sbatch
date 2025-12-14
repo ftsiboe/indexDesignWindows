@@ -4,8 +4,8 @@
 #SBATCH --time=0-20:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem=150G
-#SBATCH --array=1-57
+#SBATCH --mem=50G
+#SBATCH --array=1-48
 #SBATCH --mail-user=ftsiboe@hotmail.com
 #SBATCH --mail-type=ALL
 #SBATCH --output=/dev/null

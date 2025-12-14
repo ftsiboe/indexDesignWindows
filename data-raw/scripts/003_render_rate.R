@@ -13,18 +13,28 @@ if (Sys.info()['sysname'] %in% "Windows") {
 output_directory  <- study_environment$wd$redesigns
 if(!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
 
-done_list <- basename(list.files(output_directory,full.names = TRUE, recursive = TRUE))
-table(done_list[grepl("prf_index_",done_list)])
-done_list <- data.frame(name=done_list[!grepl("prf_index_",done_list)])
-done_list <- tidyr::separate(done_list,"name",sep="_",into = c("prf","rates","range","year"))
-table(done_list$range,done_list$year)
+function(){
+  done_list <- basename(list.files(output_directory,full.names = TRUE, recursive = TRUE))
+  table(done_list[grepl("prf_index_",done_list)])
+  done_list <- data.frame(name=done_list[!grepl("prf_index_",done_list)])
+  done_list <- tidyr::separate(done_list,"name",sep="_",into = c("prf","rates","range","year"))
+  table(done_list$range,done_list$year)
 
-#table(done_list$range)
+  #table(done_list$range)
 
-design_specs <- data.table::CJ(
-  history_range = c(200,seq(5,60,1)),
-  commodity_year = 2016:current_year,
-  unique = TRUE)
+  design_specs <- data.table::CJ(
+    history_range = c(200,seq(5,60,1)),
+    commodity_year = 2016:current_year,
+    unique = TRUE)
+
+  design_specs <- design_specs[
+    ! file.path(output_directory, stringr::str_pad(history_range,pad="0",3),
+                paste0("prf_rates_",stringr::str_pad(history_range,pad="0",3),"_",commodity_year,".rds"))
+    %in% list.files(output_directory,full.names = TRUE,recursive = TRUE)]
+  saveRDS(design_specs,"data-raw/design_specs.rds")
+}
+
+design_specs <- readRDS("data-raw/design_specs.rds")
 
 # If running under a SLURM array job, filter the design_specs by the current task ID
 if (!is.na(as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID")))) {
