@@ -10,7 +10,6 @@ unlink(c(
   list.files("./man",  full.names = TRUE)
 ))
 
-
 if(toupper(as.character(Sys.info()[["sysname"]])) %in% "WINDOWS"){
   source( file.path(dirname(dirname(getwd())),"codeLibrary.R"))
   list_function <- c(

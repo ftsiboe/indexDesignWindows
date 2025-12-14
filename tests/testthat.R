@@ -8,6 +8,6 @@
 
 library(testthat)
 library(data.table)
-library(fcipRateRevisions)
-test_check("fcipRateRevisions")
+library(indexDesignWindows)
+test_check("indexDesignWindows")
 
