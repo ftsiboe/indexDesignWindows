@@ -1,14 +1,18 @@
-Package: fcipRateRevisions
+Package: indexDesignWindows
 Type: Package
-Title: indexDesignWindows
+Title: Replication Package: Redesigning Historical Windows in Index-Based Insurance
 Version: 0.0.0.9000
 Author: Francis Tsiboe [aut, cre] (<https://orcid.org/0000-0001-5984-1072>)
 Maintainer: Francis Tsiboe <ftsiboe@hotmail.com>
 Creator: Francis Tsiboe
-Description: Replication package for studies examining the impacts of rating revisions in United States agricultural insurance.
-  - Actuarial Impacts of Rating Revisions in United States Agricultural Insurance.
-  - Actuarial Updates and Taxpayer Costs in Subsidized Agricultural Insurance Programs.
-  - The Effect of Actuarial Updates on Private-to-Public Risk Transfers in Agricultural Insurance.
+Description: Replication package for a study evaluating alternative historical window
+  designs used to construct the Pasture, Rangeland, and Forage (PRF) rainfall
+  index under the U.S. Federal Crop Insurance Program (FCIP). The package
+  systematically compares index designs based on varying lengths of historical
+  climate data to assess implications for index stability, spatial equity,
+  indemnity accuracy, and policy performance. It provides reproducible workflows,
+  pre-processed outputs, and visualization tools to support robustness analysis
+  of index-based insurance products in both U.S. and international contexts.
 License: GPL-3 + file LICENSE
 URL: https://github.com/ftsiboe/indexDesignWindows
 BugReports: https://github.com/ftsiboe/indexDesignWindows/issues

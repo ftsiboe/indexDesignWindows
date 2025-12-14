@@ -1,5 +1,5 @@
 ---
-title: "Replication Package: PRF History redesign study"
+title: "Replication Package: Redesigning Historical Windows in Index-Based Insurance"
 author: |
   Francis Tsiboe, Agricultural Risk Policy Center, North Dakota State University, Fargo, ND 58102  
 
@@ -48,14 +48,19 @@ devtools::document()
 
 **Abstract:**   
 
+ Replication package for a study evaluating alternative historical window
+  designs used to construct the Pasture, Rangeland, and Forage (PRF) rainfall
+  index under the U.S. Federal Crop Insurance Program (FCIP). The package
+  systematically compares index designs based on varying lengths of historical
+  climate data to assess implications for index stability, spatial equity,
+  indemnity accuracy, and policy performance. It provides reproducible workflows,
+  pre-processed outputs, and visualization tools to support robustness analysis
+  of index-based insurance products in both U.S. and international contexts
 **Keywords:**   
 
 **JEL Codes:** 
 
 ---
-
-**simulation Workflow**
-
 
 **📚 Citation**
 If you find it useful, please consider staring the repository and citing the following studies

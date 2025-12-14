@@ -64,8 +64,15 @@ if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
 piggyback::pb_release_create(
   repo = "ftsiboe/indexDesignWindows",
   tag  = "redesigns",
-  name = "History redesign study",
-  body = "Outputs for study on prf history redesign"
+  name = "PRF Index Redesign Outputs",
+  body = paste(
+    "This release contains outputs from alternative PRF index design experiments.",
+    "",
+    "Each folder is labeled with a three-digit code (e.g., `005`), which denotes",
+    "the length of the historical window (in years) used to construct the index.",
+    "For example, `005` corresponds to a PRF design based on five years of historical data.",
+    sep = "\n"
+  )
 )
 
 
