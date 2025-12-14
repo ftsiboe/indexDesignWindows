@@ -12,5 +12,5 @@
 
 module purge
 module load R/4.2.1-foss-2022a GDAL/3.5.0-foss-2022a PROJ/9.0.0-GCCcore-11.3.0
-R --no-save -q < data-raw/working_papers/prf_history_redesign/analysis/003_render_rate.R
+R --no-save -q < data-raw/scripts/003_render_rate.R
 
