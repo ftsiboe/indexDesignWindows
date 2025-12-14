@@ -22,7 +22,7 @@ RoxygenNote: 7.3.3
 VignetteBuilder: knitr
 Depends: R (>= 4.1.0)
 Imports: data.table, ggplot2, ggrepel, gridExtra, gtable, sf, urbnmapr
-Remotes: github::ftsiboe/rfcipDemand
+Remotes: github::ftsiboe/rfcipDemand, github::UrbanInstitute/urbnmapr
 Suggests: dplyr, tidyr, knitr, rmarkdown,  withr, stats, rfcipDemand, piggyback, classInt, testthat (>= 3.0.0)
 LazyData: true
 Cite-us: If you find it useful, please consider staring the repository and citing the following studies
