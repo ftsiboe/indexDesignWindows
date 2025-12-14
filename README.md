@@ -13,6 +13,7 @@ Lawson Connor, Agricultural Economics & Agribusiness, University of
 Arkansas, Fayetteville, AR 72701
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
 <!-- badges: start -->
 
 [![Project Status: Active – Stable and actively
@@ -46,23 +47,30 @@ U.S. and international contexts.
 
 **JEL Codes:**
 
+**Acknowledgments:**
+
+We gratefully acknowledge Beocat, the High-Performance Computing (HPC)
+cluster at Kansas State University (<https://beocat.ksu.edu/>) for
+providing the infrastructure for data and model processing; and the Risk
+Management Agency (RMA) for data. All errors are our own
+
 ------------------------------------------------------------------------
 
 **📚 Citation** If you find it useful, please consider staring the
 repository and citing the following studies
 
--   Tsiboe, F. and Turner, D. (2025). [Incorporating buy‐up price loss
-    coverage into the United States farm safety
-    net](https://onlinelibrary.wiley.com/doi/full/10.1002/aepp.13536).
-    Applied Economic Perspectives and Policy.
--   Tsiboe, F., et al. (2025). [Risk reduction impacts of crop insurance
-    in the United
-    States](https://onlinelibrary.wiley.com/doi/full/10.1002/aepp.13513#:~:text=In%20other%20words%2C%20on%20average,%2Dcrop%2Dyear%20revenue%20variability).
-    Applied Economic Perspectives and Policy.
--   Gaku, S. and Tsiboe, F. (2024). [Evaluation of alternative farm
-    safety net program combination
-    strategies](https://www.emerald.com/insight/content/doi/10.1108/afr-11-2023-0150/full/html).
-    Agricultural Finance Review.
+- Tsiboe, F. and Turner, D. (2025). [Incorporating buy‐up price loss
+  coverage into the United States farm safety
+  net](https://onlinelibrary.wiley.com/doi/full/10.1002/aepp.13536).
+  Applied Economic Perspectives and Policy.
+- Tsiboe, F., et al. (2025). [Risk reduction impacts of crop insurance
+  in the United
+  States](https://onlinelibrary.wiley.com/doi/full/10.1002/aepp.13513#:~:text=In%20other%20words%2C%20on%20average,%2Dcrop%2Dyear%20revenue%20variability).
+  Applied Economic Perspectives and Policy.
+- Gaku, S. and Tsiboe, F. (2024). [Evaluation of alternative farm safety
+  net program combination
+  strategies](https://www.emerald.com/insight/content/doi/10.1108/afr-11-2023-0150/full/html).
+  Agricultural Finance Review.
 
 **📬 Contact** Constructive feedback is highly appreciated, and
 collaborations using this package are actively encouraged. Please reach

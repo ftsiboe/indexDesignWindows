@@ -61,6 +61,10 @@ devtools::document()
 
 **JEL Codes:** 
 
+**Acknowledgments:** 
+
+We gratefully acknowledge Beocat, the High-Performance Computing (HPC) cluster at Kansas State University (https://beocat.ksu.edu/) for providing the infrastructure for data and model processing; and the Risk Management Agency (RMA) for data. All errors are our own
+
 ---
 
 **📚 Citation**
