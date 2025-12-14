@@ -40,7 +40,9 @@ of historical climate data to assess implications for index stability,
 spatial equity, indemnity accuracy, and policy performance. It provides
 reproducible workflows, pre-processed outputs, and visualization tools
 to support robustness analysis of index-based insurance products in both
-U.S. and international contexts **Keywords:**
+U.S. and international contexts.
+
+**Keywords:**
 
 **JEL Codes:**
 
