@@ -21,9 +21,9 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 VignetteBuilder: knitr
 Depends: R (>= 4.1.0)
-Imports: data.table, ggplot2
+Imports: data.table, ggplot2, ggrepel, gridExtra, gtable, sf, urbnmapr
 Remotes: github::ftsiboe/rfcipDemand
-Suggests: dplyr, tidyr, knitr, rmarkdown,  withr, stats, rfcipDemand, piggyback, testthat (>= 3.0.0)
+Suggests: dplyr, tidyr, knitr, rmarkdown,  withr, stats, rfcipDemand, piggyback, classInt, testthat (>= 3.0.0)
 LazyData: true
 Cite-us: If you find it useful, please consider staring the repository and citing the following studies
   - Tsiboe, F. and Turner, D. (2025). "Incorporating buy‐up price loss coverage into the United States

@@ -13,7 +13,8 @@ unlink(c(
 if(toupper(as.character(Sys.info()[["sysname"]])) %in% "WINDOWS"){
   source( file.path(dirname(dirname(getwd())),"codeLibrary.R"))
   list_function <- c(
-    file.path(codeLibrary,"plot/ers_theme.R")
+    file.path(codeLibrary,"plot/ers_theme.R"),
+    file.path(codeLibrary,"plot/plot_helpers.R")
   )
   file.copy(from= list_function, to = "R/", overwrite = TRUE, recursive = FALSE, copy.mode = TRUE)
 }
