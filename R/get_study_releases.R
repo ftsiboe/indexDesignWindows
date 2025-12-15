@@ -59,10 +59,10 @@ get_study_releases <- function(
   }
 
   # If token not supplied, try common env vars (safe no-op if unset)
-  if (is.null(github_token) || !nzchar(github_token)) {
-    github_token <- Sys.getenv("GITHUB_TOKEN", unset = Sys.getenv("GITHUB_PAT", unset = ""))
-    if (!nzchar(github_token)) github_token <- NULL
-  }
+  # if (is.null(github_token) || !nzchar(github_token)) {
+  #   # github_token <- Sys.getenv("GITHUB_TOKEN", unset = Sys.getenv("GITHUB_PAT", unset = ""))
+  #   if (!nzchar(github_token)) github_token <- NULL
+  # }
 
   # --- Output directory -------------------------------------------------------
   if (is.null(output_directory) || !nzchar(output_directory)) {
