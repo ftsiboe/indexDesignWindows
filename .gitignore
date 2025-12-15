@@ -5,13 +5,7 @@
 job_*.sbatch
 slurm-*.out
 data-raw/*
-!data-raw/supplementary_files/
 !data-raw/scripts/
-!data-raw/output/
-data-raw/output/*
-!data-raw/output/figure_data/
-!data-raw/output/figure/
-!data-raw/output/*.xlsx
 data/*.rds
 data/*/*.rds
 data/*/*/*.rds
