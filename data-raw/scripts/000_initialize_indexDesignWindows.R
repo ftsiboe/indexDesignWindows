@@ -14,7 +14,8 @@ if(toupper(as.character(Sys.info()[["sysname"]])) %in% "WINDOWS"){
   source( file.path(dirname(dirname(getwd())),"codeLibrary.R"))
   list_function <- c(
     file.path(codeLibrary,"plot/ers_theme.R"),
-    file.path(codeLibrary,"plot/plot_helpers.R")
+    file.path(codeLibrary,"plot/plot_helpers.R"),
+    file.path(codeLibrary,"github_tools/get_study_releases.R")
   )
   file.copy(from= list_function, to = "R/", overwrite = TRUE, recursive = FALSE, copy.mode = TRUE)
 }
@@ -68,9 +69,18 @@ piggyback::pb_release_create(
   body = paste(
     "This release contains outputs from alternative PRF index design experiments.",
     "",
-    "Each folder is labeled with a three-digit code (e.g., `005`), which denotes",
-    "the length of the historical window (in years) used to construct the index.",
-    "For example, `005` corresponds to a PRF design based on five years of historical data.",
+    "## Contents",
+    "- **Index files**: `prf_index_WWW.rds` — the underlying PRF index constructed using a historical window of length `WWW` (years).",
+    "- **Rates & payment factors**: `prf_rates_WWW_YYYY.rds` — rates and payment factors for crop year `YYYY`, based on the same `WWW`-year index design.",
+    "",
+    "## Naming convention",
+    "- `WWW` = length of the historical window (years), zero-padded to three digits.",
+    "  - Example: `005` = 5-year historical window.",
+    "- `YYYY` = crop year for which rates/payment factors are produced.",
+    "",
+    "## Examples",
+    "- `prf_index_005.rds`",
+    "- `prf_rates_005_2024.rds`",
     sep = "\n"
   )
 )
