@@ -63,59 +63,82 @@ plot_prf_statistics <- function(
     plot_title,
     prf_polygon = NULL,
     disaggregate_variable = NULL,
+    spatial_unit ="prf_grid",
     palette = c(
-      "#FEF9C5",  
-      "#FFC425",  
+      "#FEF9C5",
+      "#FFC425",
       "#FEF389",
       "#E7F2B4",
       "#D7E5C8",
       "#C5DE91",
       "#BED73B",
       "#A0BD78",
-      "#00583D",  
-      "#0F374B" 
-    )) {
-  
-  # ---- Basic checks
-  if (!"grid_id" %in% names(data)) {
-    stop("`data` must contain a `grid_id` column.")
-  }
-  
+      "#00583D",
+      "#0F374B"
+    ),
+    na.value = "white") {
+
   if (!outcome_variable %in% names(data)) {
     stop("`outcome_variable` must be a column in `data`.")
   }
-  
+
   if (!is.null(disaggregate_variable) &&
       !disaggregate_variable %in% names(data)) {
     stop("`disaggregate_variable` must be a column in `data` when supplied.")
   }
-  
-  # ---- Load official PRF polygons if none supplied
-  if (is.null(prf_polygon)) {
-    prf_polygon <- get_official_prf_polygon()
-  }
-  
-  if (!"grid_id" %in% names(prf_polygon)) {
-    stop("`prf_polygon` must contain a `grid_id` column.")
-  }
-  
-  # Keep only PRF cells that appear in the data
-  prf_polygon <- prf_polygon[prf_polygon$grid_id %in% unique(data$grid_id), ]
-  
-  # Ensure sf
-  prf_polygon <- sf::st_as_sf(prf_polygon)
-  
-  # Get US state boundaries (sf) and align CRS
+
   us_states <- urbnmapr::get_urbn_map(map = "states", sf = TRUE)
-  prf_polygon <- sf::st_transform(prf_polygon, sf::st_crs(us_states))
-  
-  # ---- Join data to polygons and filter missing outcome
-  sf_object <- prf_polygon |>
-    dplyr::left_join(data, by = "grid_id") |>
-    dplyr::filter(!is.na(.data[[outcome_variable]]))
-  
-  # ---- Base map 
+
+  if(spatial_unit %in% "prf_grid"){
+    # ---- Basic checks
+    if (!"grid_id" %in% names(data)) {
+      stop("`data` must contain a `grid_id` column.")
+    }
+
+    # ---- Load official PRF polygons if none supplied
+    if (is.null(prf_polygon)) {
+      prf_polygon <- rfcipPRF::get_official_prf_polygon()
+    }
+
+    if (!"grid_id" %in% names(prf_polygon)) {
+      stop("`prf_polygon` must contain a `grid_id` column.")
+    }
+    # Keep only PRF cells that appear in the data
+    prf_polygon <- prf_polygon[prf_polygon$grid_id %in% unique(data$grid_id), ]
+
+    # Ensure sf
+    prf_polygon <- sf::st_as_sf(prf_polygon)
+
+    # Get US state boundaries (sf) and align CRS
+    prf_polygon <- sf::st_transform(prf_polygon, sf::st_crs(us_states))
+
+    # ---- Join data to polygons and filter missing outcome
+    sf_object <- prf_polygon |>
+      dplyr::left_join(data, by = "grid_id") |>
+      dplyr::filter(!is.na(.data[[outcome_variable]]))
+  }
+
+  if(spatial_unit %in% "county"){
+    prf_polygon <- urbnmapr::get_urbn_map(map = "counties", sf = TRUE)
+
+    if (!"county_fips" %in% names(data)) {
+      stop("`data` must contain a `county_fips` column.")
+    }
+
+    # ---- Join data to polygons and filter missing outcome
+    sf_object <- prf_polygon |>
+      dplyr::left_join(data, by = "county_fips") |>
+      dplyr::filter(!is.na(.data[[outcome_variable]]))
+  }
+
+  # ---- Base map
   p <- ggplot() +
+    geom_sf(
+      data   = us_states[!as.numeric(us_states$state_fips) %in% c(2, 15), ],
+      colour = "black",
+      fill   = na.value,
+      size   = 0.1
+    ) +
     geom_sf(
       data   = sf_object,
       aes(fill = .data[[outcome_variable]]),
@@ -130,7 +153,7 @@ plot_prf_statistics <- function(
     ) +
     scale_fill_manual(
       values   = palette,
-      na.value = "black",
+      na.value = na.value,
       name     = ""
     ) +
     labs(title = plot_title) +
@@ -154,8 +177,8 @@ plot_prf_statistics <- function(
       strip.background  = element_blank()
     ) +
     coord_sf()
-  
-  # ---- Optional facet by disaggregate 
+
+  # ---- Optional facet by disaggregate
   if (!is.null(disaggregate_variable)) {
     p <- p +
       facet_wrap(
@@ -163,7 +186,7 @@ plot_prf_statistics <- function(
         ncol = 2
       )
   }
-  
+
   p
 }
 
@@ -199,7 +222,7 @@ plot_prf_statistics <- function(
 #' @param rename Optional character scalar. If supplied, the output column
 #'   \code{value} will be renamed to this string (e.g., \code{"std_diff"} or
 #'   \code{"index"}).
-#'
+#' @param panel_variables panel variables
 #' @return A long-format data frame with the columns:
 #' \describe{
 #'   \item{grid_id}{Identifier for the spatial/grid unit.}
@@ -213,13 +236,14 @@ reshape_statistics <- function(
     data,
     statistic_variables,
     disaggregate_labels,
-    rename = NULL) {
-  
+    rename = NULL,
+    panel_variables) {
+
   # ---- Input validation
   if (length(statistic_variables) != length(disaggregate_labels)) {
     stop("Length of `statistic_variables` must match length of `disaggregate_labels`.")
   }
-  
+
   missing_vars <- setdiff(statistic_variables, names(data))
   if (length(missing_vars) > 0) {
     stop(
@@ -227,29 +251,29 @@ reshape_statistics <- function(
       paste(missing_vars, collapse = ", ")
     )
   }
-  
+
   if (!is.null(rename)) {
     if (!is.character(rename) || length(rename) != 1L) {
       stop("`rename` must be a character scalar if provided.")
     }
   }
-  
+
   # ---- Reshape data
-  data <- data[c("grid_id", statistic_variables)] |>
+  data <- data[c(panel_variables, statistic_variables)] |>
     tidyr::gather(disaggregate, value, statistic_variables)
-  
+
   # ---- Assign factor labels
   data$disaggregate <- factor(
     data$disaggregate,
     levels = statistic_variables,
     labels = disaggregate_labels
   )
-  
+
   # ---- Optionally rename `value` column
   if (!is.null(rename)) {
     names(data)[names(data) == "value"] <- rename
   }
-  
+
   return(data)
 }
 
@@ -300,24 +324,24 @@ add_break_categories <- function(
     break_n = NULL,
     break_levels = NULL,
     break_labels = NULL) {
-  
+
   # --- sanity checks
   if (is.null(break_levels) && is.null(break_n)) {
     stop("Either `break_levels` must be supplied or `break_n` must be non-NULL.")
   }
-  
+
   if (!variable %in% names(data)) {
     stop("`variable` must be a column in `data`.")
   }
-  
+
   # --- compute breaks if not supplied
   if (is.null(break_levels)) {
     idx_vec <- data[[variable]]
     jenks  <- classInt::classIntervals(idx_vec, n = break_n, style = "fisher")
-    
+
     break_levels <- jenks$brks
   }
-  
+
   # --- generate labels if not supplied
   if (is.null(break_labels)) {
     break_labels <- paste0(
@@ -326,10 +350,10 @@ add_break_categories <- function(
       sprintf("%.2f", utils::tail(break_levels, -1))
     )
   }
-  
+
   # --- categorize variable
   new_var_name <- paste0(variable, "_cat")
-  
+
   data[[new_var_name]] <- cut(
     data[[variable]],
     breaks = break_levels,
@@ -337,6 +361,6 @@ add_break_categories <- function(
     include.lowest = TRUE,
     right = FALSE
   )
-  
+
   data
 }

@@ -8,7 +8,8 @@ reshape_statistics(
   data,
   statistic_variables,
   disaggregate_labels,
-  rename = NULL
+  rename = NULL,
+  panel_variables
 )
 }
 \arguments{
@@ -24,6 +25,8 @@ contain the statistics to reshape.}
 \item{rename}{Optional character scalar. If supplied, the output column
 \code{value} will be renamed to this string (e.g., \code{"std_diff"} or
 \code{"index"}).}
+
+\item{panel_variables}{panel variables}
 }
 \value{
 A long-format data frame with the columns:

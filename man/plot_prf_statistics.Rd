@@ -10,8 +10,10 @@ plot_prf_statistics(
   plot_title,
   prf_polygon = NULL,
   disaggregate_variable = NULL,
+  spatial_unit = "prf_grid",
   palette = c("#FEF9C5", "#FFC425", "#FEF389", "#E7F2B4", "#D7E5C8", "#C5DE91",
-    "#BED73B", "#A0BD78", "#00583D", "#0F374B")
+    "#BED73B", "#A0BD78", "#00583D", "#0F374B"),
+  na.value = "white"
 )
 }
 \arguments{
