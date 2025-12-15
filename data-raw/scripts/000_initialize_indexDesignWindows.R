@@ -76,3 +76,22 @@ piggyback::pb_release_create(
 )
 
 
+piggyback::pb_release_create(
+  repo = "ftsiboe/indexDesignWindows",
+  tag  = "baseline",
+  name = "Baseline Outputs",
+  body = paste(
+    "This release contains outputs from alternative PRF index design experiments baseline.",
+    sep = "\n"
+  )
+)
+
+piggyback::pb_release_create(
+  repo = "ftsiboe/indexDesignWindows",
+  tag  = "statistical_threshold",
+  name = "Statistical Threshold Outputs",
+  body = paste(
+    "This release contains outputs from alternative PRF index design experiments statistical threshold analysis.",
+    sep = "\n"
+  )
+)

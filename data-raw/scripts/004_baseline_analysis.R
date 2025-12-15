@@ -151,6 +151,17 @@ prf_baseline_balance_rate <- compute_balance(
 saveRDS(prf_baseline_balance_rate,file.path(output_directory,"baseline_balance_rate.rds"))
 
 #-------------------------------------------------------------------------------
+# Upload Baseline assets                                                     ####
+function(){
+  if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
+  piggyback::pb_upload(
+    list.files(output_directory, full.names = TRUE, recursive = T),
+    repo  = "ftsiboe/indexDesignWindows",
+    tag   = "baseline",
+    overwrite = TRUE
+  )
+}
+#-------------------------------------------------------------------------------
 # Plot - RMA Rate Discretion Factor                                          ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
 data <- readRDS(file.path(output_directory,"rma_rate_discretion_factor.rds"))
