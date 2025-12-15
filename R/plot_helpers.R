@@ -18,9 +18,9 @@
 #'   if `NULL`, no table is added.
 #' @param label_size label size for sgeom_sf_text
 #' @param na.value The aesthetic value to use for missing (NA) values
-#' @param keep_all_states keep all states
+#' @param keep_all_states keep all states 
 #' @return A `ggplot` object showing the US states choropleth with annotated labels.
-#'
+#' 
 #' @details
 #' - Uses `urbnmapr::get_urbn_map(map = "states", sf = TRUE)` to fetch a US states basemap.
 #' - Joins the input data on `state_code` and filters out states with missing `value_cat`.
@@ -61,32 +61,32 @@ plot_us_states_choropleth <- function(
   if (is.null(legend_title)) {
     legend_title <- ""
   }
-
+  
   # Load base map of US states with FIPS codes
   us_sf <- urbnmapr::get_urbn_map(map = "states", sf = TRUE)
   us_sf$state_code <- as.numeric(as.character(us_sf$state_fips))
-
+  
   # Join user data to base map and drop missing categories
   sf_object <- us_sf |>
     dplyr::left_join(data, by = "state_code") |>
     dplyr::filter(!is.na(value_cat))
-
+  
   # Create labels: two-line state abbreviation and rounded value
   sf_object$label <- paste0(
     sf_object$state_abbv, "\n",
     sprintf("%.2f", round(sf_object$value, 1))
   )
-
+  
   # Transform to equal-area projection for area and centroid calculations
   sf_eqarea <- st_transform(sf_object, 5070)
-
+  
   # Compute area in km^2 and flag "small" states (< 50,000 km^2)
   sf_object <- sf_object |>
     dplyr::mutate(
       area_km2 = as.numeric(st_area(sf_eqarea) / 1e6),
       is_small = area_km2 < 50000
     )
-
+  
   # Extract centroids for small states
   small_states <- sf_object |>
     dplyr::filter(is_small) |>
@@ -95,31 +95,31 @@ plot_us_states_choropleth <- function(
       cx = st_coordinates(centroid)[,1],
       cy = st_coordinates(centroid)[,2]
     )
-
+  
   # Big states plotted normally
   big_states <- dplyr::filter(sf_object, !is_small)
-
+  
   # Compute map bounding box and offsets for label nudging
   bb    <- st_bbox(us_sf)
   mid_x <- (bb$xmin + bb$xmax) / 2
   x_off <- (bb$xmax - bb$xmin) * 0.05  # 5% width
   y_off <- (bb$ymax - bb$ymin) * 0.10  # 10% height
-
+  
   # Separate small states into east, west, and VT/NH groups
   vt_nh      <- dplyr::filter(small_states, state_abbv %in% c("VT", "NH"))
   east_small <- dplyr::filter(small_states, cx > mid_x, !state_abbv %in% c("VT", "NH"))
   west_small <- dplyr::filter(small_states, cx <= mid_x)
-
+  
   # Build the ggplot object
   if(keep_all_states){
     fig <- ggplot() + geom_sf(data = us_sf,colour = "black", fill = na.value, size = 0.1)
   }else{
     fig <- ggplot()
   }
-
+  
   fig <- fig +
     # Fill states by category
-    geom_sf(data = sf_object,aes(fill = value_cat),colour = NA, size = 0.2) +
+    geom_sf(data = sf_object,aes(fill = value_cat),colour = NA, size = 0.2) + 
     geom_sf(
     data = us_sf[us_sf$state_abbv %in% unique(sf_object$state_abbv),],
     colour = "black", fill = NA, size = 0.1) +
@@ -128,7 +128,7 @@ plot_us_states_choropleth <- function(
       data = big_states,
       aes(label = label),
       size = label_size, fontface = "bold"
-    ) +
+    ) + 
     # Repelled labels for small western states
     geom_text_repel(
       data = west_small,
@@ -178,7 +178,7 @@ plot_us_states_choropleth <- function(
       strip.background   = element_blank()
     ) +
     coord_sf()
-
+  
   # Optionally add a table grob in the bottom-left
   if (!is.null(table_grob)) {
     fig <- fig +
@@ -188,7 +188,7 @@ plot_us_states_choropleth <- function(
         ymin = -5300000
       )
   }
-
+  
   return(fig)
 }
 
@@ -274,7 +274,7 @@ plot_fcip_main_outcomes <- function(
                 "#51ABA0", #  (Teal)
                 "#0F374B") #  (Night)
 ){
-
+  
   data <- as.data.frame(data)
   data$colume_outcome  <- data[,colume_outcome]
   data$colume_grouping <- data[,colume_grouping]
@@ -283,7 +283,7 @@ plot_fcip_main_outcomes <- function(
   if(is.null(time_scale_theme)){
     time_scale_theme = scale_x_continuous(breaks = unique(data$colume_year),labels = unique(data$colume_year))
   }
-
+  
   if(is.null(general_theme)){
     general_theme <- ers_theme() +
       theme(
@@ -301,18 +301,18 @@ plot_fcip_main_outcomes <- function(
         strip.text       = element_text(size = 10),
         strip.background = element_blank())
   }
-
-  labs <- data[grepl("liability",tolower(data$colume_outcome)) &
+  
+  labs <- data[grepl("liability",tolower(data$colume_outcome)) & 
                  data$colume_year %in% max(data$colume_year,na.rm=T),]
-
+  
   labs <- labs[order(-labs$value),]
-
+  
   data$ranking <- as.numeric(as.character(factor(data$colume_grouping,levels = labs$colume_grouping, labels = 1:nrow(labs))))
-
+  
   data$ranking <- factor(data$ranking,levels = 1:nrow(labs), labels = labs$colume_grouping)
-
+  
   NN <- length(unique(as.character(data$colume_grouping)))
-
+  
   fig <- ggplot()+
     geom_bar(data=data,aes(x = colume_year, y= value,
                  group=ranking,color=ranking,fill=ranking,color=ranking),
@@ -320,13 +320,13 @@ plot_fcip_main_outcomes <- function(
     labs(x="\nCommodity year", y = "") +
     facet_wrap(~colume_outcome, ncol = 2, scales ="free") +
     guides(fill = guide_legend(nrow = NN,override.aes = list(size=3))) +
-    general_theme #+ time_scale_theme
-
+    general_theme #+ time_scale_theme 
+  
   if(!is.null(palette)){
     fig <- fig + scale_fill_manual(values = palette,na.value = "white", name = colume_grouping)
     fig <- fig + scale_color_manual(values = palette,na.value = "white", name = colume_grouping)
   }
-
+  
   fig
 
   return(fig)
@@ -435,7 +435,7 @@ plot_liability_and_acres <- function(
   if(is.null(time_scale_theme)){
     time_scale_theme = scale_x_continuous(breaks = unique(data$commodity_year),labels = unique(data$commodity_year))
   }
-
+  
   if(is.null(general_theme)){
     general_theme <- ers_theme() +
       theme(plot.title= element_text(size=10.5),
@@ -448,7 +448,7 @@ plot_liability_and_acres <- function(
             strip.text = element_text(size = 10),
             strip.background = element_rect(fill = "white", colour = "black", size = 1))
   }
-
+  
   data$grouping_variable <- data[,grouping_variable]
   NN <- length(unique(as.character(data$grouping_variable)))
   figA <- ggplot()+
@@ -478,7 +478,7 @@ plot_liability_and_acres <- function(
           axis.text.x = element_text(size=10,color="black",angle = 90,vjust = 0.5),
           legend.position ="none",
           strip.background = element_blank())
-
+  
   if(!is.null(palette)){
     figA <- figA + scale_fill_manual(values = palette,na.value = "white", name = grouping_name)
     figB <- figB + scale_fill_manual(values = palette,na.value = "white", name = grouping_name)
@@ -489,7 +489,7 @@ plot_liability_and_acres <- function(
       ggplot_build(
         figA + labs(x="Commodity year") + theme(axis.title.x= element_text(size=10,color="black"))
       )), "xlab-b")
-
+  
   ldgnd <- gtable_filter(
     ggplot_gtable(
       ggplot_build(
@@ -499,7 +499,7 @@ plot_liability_and_acres <- function(
                 legend.key.size = unit(0.5,"cm"),
                 legend.text=element_text(size=7.5))
       )), "guide-box-botto")
-
+  
   fig <- gridExtra::grid.arrange(figA,figB,widths=c(1,1),nrow = 1)
   fig <- gridExtra::grid.arrange(fig,xlabT,heights=c(1,0.05),ncol = 1)
   fig <- gridExtra::grid.arrange(fig,ldgnd,heights=c(1,0.10),ncol = 1)
@@ -508,11 +508,11 @@ plot_liability_and_acres <- function(
 
 #' Add U.S. Farm Policy Vertical Lines and Labels to a ggplot
 #'
-#' This function overlays vertical lines and text labels on a ggplot object to mark major
-#' U.S. agricultural policy events (e.g., Farm Bills or Acts). The vertical lines are drawn
+#' This function overlays vertical lines and text labels on a ggplot object to mark major 
+#' U.S. agricultural policy events (e.g., Farm Bills or Acts). The vertical lines are drawn 
 #' at specific years, and labels are positioned based on values provided in the `pty` vector.
 #'
-#' @param pty A numeric vector of y-axis positions for label placement.
+#' @param pty A numeric vector of y-axis positions for label placement. 
 #' The length of the vector determines which policy annotations are added:
 #' \itemize{
 #'   \item 1st: 1980 Act
@@ -526,11 +526,11 @@ plot_liability_and_acres <- function(
 #' @param plot A `ggplot` object to which policy lines and labels will be added.
 #' @param size A numeric value indicating the text size of the policy labels.
 #'
-#' @return A `ggplot` object with added vertical dashed lines and corresponding
+#' @return A `ggplot` object with added vertical dashed lines and corresponding 
 #' text labels for each policy year provided.
 #'
 #' @details
-#' The lines and labels are added in brown color with dashed lines (`lty=5`), and labels
+#' The lines and labels are added in brown color with dashed lines (`lty=5`), and labels 
 #' are rotated vertically. Labels are only drawn if the corresponding index exists in `pty`.
 #'
 #' @import ggplot2
@@ -546,37 +546,37 @@ plot_liability_and_acres <- function(
 #'
 #' @export
 policytime <- function(pty,plot,size){
-  plotx <- plot + geom_vline(aes(xintercept=1980), lwd=0.5, lty=5,color = "brown") +
+  plotx <- plot + geom_vline(aes(xintercept=1980), lwd=0.5, lty=5,color = "brown") + 
     geom_text(aes(x=1980 + .5, label="1980 Act",y=pty[1]),
               colour="brown", angle=90, size=size,check_overlap = TRUE, fontface = "bold")
-
+  
   if(length(pty) >=2){
-    plotx <- plotx + geom_vline(aes(xintercept=1994), lwd=0.5, lty=5,color = "brown") +
+    plotx <- plotx + geom_vline(aes(xintercept=1994), lwd=0.5, lty=5,color = "brown") + 
       geom_text(aes(x=1994 + .5, label="1994 Act",y=pty[2]),
                 colour="brown", angle=90, size=size,check_overlap = TRUE,fontface = "bold")
   }
   if(length(pty) >=3){
-    plotx <- plotx + geom_vline(aes(xintercept=1996), lwd=0.5, lty=5,color = "brown") +
+    plotx <- plotx + geom_vline(aes(xintercept=1996), lwd=0.5, lty=5,color = "brown") + 
       geom_text(aes(x=1996 + .5, label="1996 Farm Bill",y=pty[3]),
                 colour="brown", angle=90, size=size,check_overlap = TRUE,fontface = "bold")
   }
   if(length(pty) >=4){
-    plotx <- plotx +  geom_vline(aes(xintercept=2000), lwd=0.5, lty=5,color = "brown") +
+    plotx <- plotx +  geom_vline(aes(xintercept=2000), lwd=0.5, lty=5,color = "brown") + 
       geom_text(aes(x=2000 + .5, label="2000 Agricultural Risk Protection Act",y=pty[4]),
                 colour="brown", angle=90, size=size,check_overlap = TRUE,fontface = "bold")
   }
   if(length(pty) >=5){
-    plotx <- plotx + geom_vline(aes(xintercept=2008), lwd=0.5, lty=5,color = "brown") +
+    plotx <- plotx + geom_vline(aes(xintercept=2008), lwd=0.5, lty=5,color = "brown") + 
       geom_text(aes(x=2008 + .5, label="2008 Farm Bill",y=pty[5]),
                 colour="brown", angle=90, size=size,check_overlap = TRUE,fontface = "bold")
   }
   if(length(pty) >=6){
-    plotx <- plotx + geom_vline(aes(xintercept=2014), lwd=0.5, lty=5,color = "brown") +
+    plotx <- plotx + geom_vline(aes(xintercept=2014), lwd=0.5, lty=5,color = "brown") + 
       geom_text(aes(x=2014 + .5, label="2014 Farm Bill",y=pty[6]),
                 colour="brown", angle=90, size=size,check_overlap = TRUE,fontface = "bold")
   }
   if(length(pty) >=7){
-    plotx <- plotx + geom_vline(aes(xintercept=2018), lwd=0.5, lty=5,color = "brown") +
+    plotx <- plotx + geom_vline(aes(xintercept=2018), lwd=0.5, lty=5,color = "brown") + 
       geom_text(aes(x=2018 + .5, label="2018 Farm Bill",y=pty[7]),
                 colour="brown", angle=90, size=size,check_overlap = TRUE,fontface = "bold")
   }

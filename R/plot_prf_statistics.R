@@ -38,8 +38,11 @@
 #' @param disaggregate_variable Optional character scalar giving the name of a
 #'   column in \code{data} used for faceting (e.g., \code{"disaggregate"} or
 #'   \code{"source"}). If \code{NULL}, no facets are drawn.
+#' @param spatial_unit Character scalar. One of \code{"prf_grid"} or \code{"county"}.
+#'   Determines which polygons are used and which join key is required.
 #' @param palette Character vector of hex color codes used for the fill scale.
 #'   The default is a 10-color sequential/diverging palette tailored to PRF maps.
+#' @param na.value Fill color for the background (non-data areas) and missing values.
 #'
 #' @return
 #' A \code{ggplot} object representing the PRF statistics map, optionally with
@@ -89,7 +92,7 @@ plot_prf_statistics <- function(
 
   us_states <- urbnmapr::get_urbn_map(map = "states", sf = TRUE)
 
-  if(spatial_unit %in% "prf_grid"){
+  if(spatial_unit == "prf_grid"){
     # ---- Basic checks
     if (!"grid_id" %in% names(data)) {
       stop("`data` must contain a `grid_id` column.")
@@ -97,7 +100,7 @@ plot_prf_statistics <- function(
 
     # ---- Load official PRF polygons if none supplied
     if (is.null(prf_polygon)) {
-      prf_polygon <- rfcipPRF::get_official_prf_polygon()
+      prf_polygon <- get_official_prf_polygon()
     }
 
     if (!"grid_id" %in% names(prf_polygon)) {
@@ -118,7 +121,7 @@ plot_prf_statistics <- function(
       dplyr::filter(!is.na(.data[[outcome_variable]]))
   }
 
-  if(spatial_unit %in% "county"){
+  if(spatial_unit == "county"){
     prf_polygon <- urbnmapr::get_urbn_map(map = "counties", sf = TRUE)
 
     if (!"county_fips" %in% names(data)) {

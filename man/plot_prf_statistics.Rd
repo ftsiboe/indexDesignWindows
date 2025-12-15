@@ -34,8 +34,13 @@ with a \code{grid_id} column. If \code{NULL}, the function calls
 column in \code{data} used for faceting (e.g., \code{"disaggregate"} or
 \code{"source"}). If \code{NULL}, no facets are drawn.}
 
+\item{spatial_unit}{Character scalar. One of \code{"prf_grid"} or \code{"county"}.
+Determines which polygons are used and which join key is required.}
+
 \item{palette}{Character vector of hex color codes used for the fill scale.
 The default is a 10-color sequential/diverging palette tailored to PRF maps.}
+
+\item{na.value}{Fill color for the background (non-data areas) and missing values.}
 }
 \value{
 A \code{ggplot} object representing the PRF statistics map, optionally with
