@@ -8,9 +8,9 @@
 #
 # force = TRUE ensures the latest version is installed
 # upgrade = "never" avoids upgrading CRAN dependencies (for reproducibility)
-devtools::install_github("ftsiboe/rfcipPRF", force = TRUE, upgrade = "never")
-devtools::install_github("ftsiboe/indexDesignWindows", force = TRUE, upgrade = "never")
-
+devtools::install_github("ftsiboe/rfcipPRF", force = TRUE, upgrade = "never",auth_token = Sys.getenv("rfcipPRF_TOKEN", unset = NA))
+#devtools::install_github("ftsiboe/indexDesignWindows", force = TRUE, upgrade = "never")
+devtools::document()
 
 # -------------------------------------------------------------------
 # Download PRF Index Redesign Outputs
@@ -26,6 +26,7 @@ devtools::install_github("ftsiboe/indexDesignWindows", force = TRUE, upgrade = "
 #   data-raw/releases/redesigns/
 get_study_releases(
   owner        = "ftsiboe",
+  output_directory = "data-raw/releases/redesigns",
   repository   = "indexDesignWindows",
   release_tag  = "redesigns"
 )
@@ -43,9 +44,10 @@ get_study_releases(
 # Files are downloaded into:
 #   data-raw/releases/baseline/
 get_study_releases(
-  owner        = "ftsiboe",
-  repository   = "indexDesignWindows",
-  release_tag  = "baseline"
+  owner            = "ftsiboe",
+  output_directory = "data-raw/releases/baseline",
+  repository       = "indexDesignWindows",
+  release_tag      = "baseline"
 )
 
 
@@ -62,7 +64,8 @@ get_study_releases(
 # Files are downloaded into:
 #   data-raw/releases/statistical_threshold/
 get_study_releases(
-  owner        = "ftsiboe",
-  repository   = "indexDesignWindows",
-  release_tag  = "statistical_threshold"
+  owner            = "ftsiboe",
+  output_directory = "data-raw/releases/statistical_threshold/",
+  repository       = "indexDesignWindows",
+  release_tag      = "statistical_threshold"
 )

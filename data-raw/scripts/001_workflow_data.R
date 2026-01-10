@@ -78,7 +78,7 @@ rma_data <- as.data.table(readRDS(file.path(temporary_dir,file_name)))[
 
 saveRDS(rma_data,"data/official_prf_index.rds")
 #----------------------------------------------------
-# Official PRF index                              ####
+# Official PRF Grid Weights                       ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 temporary_dir <- tempdir()
 file_name <- "potential_prf_grids.rds"
@@ -91,7 +91,7 @@ piggyback::pb_download(
 data <- readRDS(file.path(temporary_dir,file_name))
 saveRDS(data,"data/prf_grid_weights.rds")
 #----------------------------------------------------
-# Official PRF index                              ####
+# Official PRF county penetration                 ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 piggyback::pb_download(
   file = "prf_county_penetration.rds",
