@@ -1,34 +1,61 @@
-#' Plot an Annotated US States Choropleth Map
+#' Plot a US States Choropleth With State-Level Labels
 #'
 #' @description
-#' Creates a choropleth map of US states colored by a categorical value, with state labels
-#' and special treatment for small states (VT, NH, and other small ones) using repelled text.
-#' Optionally embeds a table grob in the bottom-left corner of the map.
+#' Builds a U.S. states choropleth by joining user-supplied state data (by FIPS)
+#' to the `urbnmapr` states basemap. States are filled using a categorical column,
+#' and each state is labeled with a two-line label (state abbreviation + a value
+#' column). Labels for small states are placed with repelled text to reduce
+#' overlap, with special nudges for Vermont and New Hampshire. Optionally, a
+#' table grob can be embedded in the lower-left of the map.
 #'
-#' @param data A data frame containing at least:
-#'   \itemize{
-#'     \item `state_code`: numeric FIPS code matching `urbnmapr::get_urbn_map("states")`
-#'     \item `value_cat`: categorical variable used for fill colors
-#'     \item `value`: numeric variable used to display numeric labels
-#'   }
-#' @param legend_title Character; title for the fill legend. If `NULL`, no title is shown.
-#' @param palette Character vector of colours (hex codes) to use for the categories.
-#'   Defaults to a 10-colour NDSU-inspired palette.
-#' @param table_grob A `grob` object (e.g. from `gridExtra::tableGrob`) to annotate on the map;
-#'   if `NULL`, no table is added.
-#' @param label_size label size for sgeom_sf_text
-#' @param na.value The aesthetic value to use for missing (NA) values
-#' @param keep_all_states keep all states 
-#' @return A `ggplot` object showing the US states choropleth with annotated labels.
-#' 
+#' @param data A `data.frame` containing (at minimum) a `state_code` column of
+#'   numeric state FIPS codes used to join to the `urbnmapr` states map. It must
+#'   also contain the columns referenced by `value_lable` and `category_lable`.
+#' @param value_lable Character scalar. Name of the column in `data` used to
+#'   populate the numeric/value portion of the state label (second line).
+#'   Values are inserted as-is (not rounded/formatted) and are coerced through
+#'   `as.data.frame(sf_object)[, value_lable]`.
+#' @param category_lable Character scalar. Name of the column in `data` used for
+#'   choropleth fills. Rows with missing values in this column are dropped unless
+#'   you set `keep_all_states = TRUE` (which still draws all states, but only
+#'   colors those present after filtering).
+#' @param legend_title Character. Legend title for the fill scale. If `NULL`,
+#'   the title is set to an empty string (i.e., no visible title).
+#' @param state_text_colors Character vector of length 2. The first color is used
+#'   for labels on non-small states; the second color is used for repelled labels
+#'   on small states.
+#' @param palette Character vector of hex colours used by `scale_fill_manual()`
+#'   for the categories in `category_lable`.
+#' @param table_grob Optional grob to embed on the map using `annotation_custom()`
+#'   (e.g., `gridExtra::tableGrob(...)`). If `NULL`, no table is added.
+#' @param label_size Numeric. Text size passed to `geom_sf_text()` and
+#'   `geom_text_repel()`.
+#' @param na.value Character. Fill color used for missing values when drawing
+#'   the basemap (and as `na.value` in `scale_fill_manual()`).
+#' @param keep_all_states Logical. If `TRUE`, first draws the full U.S. states
+#'   basemap in `na.value` (so states not present in `data` remain visible).
+#'   If `FALSE`, only the joined/filtered states are drawn.
+#'
+#' @return A `ggplot` object (choropleth of U.S. states) with state labels and
+#'   an optional embedded table grob.
+#'
 #' @details
-#' - Uses `urbnmapr::get_urbn_map(map = "states", sf = TRUE)` to fetch a US states basemap.
-#' - Joins the input data on `state_code` and filters out states with missing `value_cat`.
-#' - Computes equal-area centroids (EPSG:5070) to place labels.
-#' - Flags states with area < 50,000 km^2 as "small" and applies repelled text labels.
-#' - Standard states get text labels placed via `geom_sf_text()`.
-#' - Small states in the east and west are nudged horizontally; VT & NH get custom nudges.
-#' - Adds an optional table in the bottom-left via `annotation_custom()`.
+#' The function:
+#' \itemize{
+#'   \item Loads the states basemap via `urbnmapr::get_urbn_map(map = "states", sf = TRUE)`
+#'   and creates a numeric `state_code` from `state_fips`.
+#'   \item Left-joins `data` on `state_code`, then filters out rows where
+#'   `category_lable` is `NA`.
+#'   \item Builds a two-line label of `STATE_ABB` plus the `value_lable` column.
+#'   \item Flags "small" states as those with area < 50,000 km\eqn{^2} (computed
+#'   after transforming to EPSG:5070 for equal-area calculations).
+#'   \item Uses `geom_sf_text()` for non-small states and `ggrepel::geom_text_repel()`
+#'   for small states, nudging labels left/right based on whether the centroid
+#'   lies east or west of the map midpoint; Vermont and New Hampshire get a
+#'   custom nudge.
+#'   \item Optionally adds `table_grob` at fixed map coordinates using
+#'   `annotation_custom()`.
+#' }
 #'
 #' @import ggplot2
 #' @import sf
@@ -38,7 +65,10 @@
 #' @export
 plot_us_states_choropleth <- function(
     data,
+    value_lable,
+    category_lable,
     legend_title = NULL,
+    state_text_colors = c("black","black"),
     palette = c(
       "#BE5E27", # Rust
       "#FFC425", # NDSU Yellow
@@ -69,12 +99,12 @@ plot_us_states_choropleth <- function(
   # Join user data to base map and drop missing categories
   sf_object <- us_sf |>
     dplyr::left_join(data, by = "state_code") |>
-    dplyr::filter(!is.na(value_cat))
+    dplyr::filter(!is.na(get(category_lable)))
   
   # Create labels: two-line state abbreviation and rounded value
   sf_object$label <- paste0(
     sf_object$state_abbv, "\n",
-    sprintf("%.2f", round(sf_object$value, 1))
+    as.data.frame(sf_object)[,value_lable]
   )
   
   # Transform to equal-area projection for area and centroid calculations
@@ -119,15 +149,16 @@ plot_us_states_choropleth <- function(
   
   fig <- fig +
     # Fill states by category
-    geom_sf(data = sf_object,aes(fill = value_cat),colour = NA, size = 0.2) + 
+    geom_sf(data = sf_object,aes(fill = get(category_lable)),colour = NA, size = 0.1) + 
     geom_sf(
-    data = us_sf[us_sf$state_abbv %in% unique(sf_object$state_abbv),],
-    colour = "black", fill = NA, size = 0.1) +
+      data = us_sf[us_sf$state_abbv %in% unique(sf_object$state_abbv),],
+      colour = "black", fill = NA, size = 0.1) +
     # Labels for big states
     geom_sf_text(
       data = big_states,
       aes(label = label),
-      size = label_size, fontface = "bold"
+      size = label_size,
+      color=state_text_colors[1]
     ) + 
     # Repelled labels for small western states
     geom_text_repel(
@@ -135,7 +166,7 @@ plot_us_states_choropleth <- function(
       aes(x = cx, y = cy, label = label),
       nudge_x = -x_off, hjust = 1, direction = "y",
       size = label_size, segment.size = 0.3, min.segment.length = 0,
-      fontface = "bold"
+      color=state_text_colors[2]
     ) +
     # Repelled labels for small eastern states
     geom_text_repel(
@@ -143,7 +174,7 @@ plot_us_states_choropleth <- function(
       aes(x = cx, y = cy, label = label),
       nudge_x = x_off, hjust = 0, direction = "y",
       size = label_size, segment.size = 0.3, min.segment.length = 0,
-      fontface = "bold"
+      color=state_text_colors[2]
     ) +
     # Special placement for VT and NH
     geom_text_repel(
@@ -152,7 +183,7 @@ plot_us_states_choropleth <- function(
       nudge_x = -1.5 * x_off, nudge_y = y_off,
       hjust = 0, direction = "y", size = label_size,
       segment.size = 0.3, min.segment.length = 0,
-      fontface = "bold"
+      color=state_text_colors[2]
     ) +
     # Apply custom palette and legend title
     scale_fill_manual(
