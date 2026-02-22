@@ -13,6 +13,10 @@ if (Sys.info()['sysname'] %in% "Windows") {
 output_directory  <- study_environment$wd$redesigns
 if(!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
 
+prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
+
+rma_index_discretion_factor <- readRDS("data-raw/releases/baseline/rma_index_discretion_factor.rds")
+
 function(){
   done_list <- basename(list.files(output_directory,full.names = TRUE, recursive = TRUE))
   table(done_list[grepl("prf_index_",done_list)])
@@ -57,19 +61,42 @@ lapply(
       range_tag      <- stringr::str_pad(history_range,pad="0",3)
       out_file_rates <- file.path(output_directory, range_tag,paste0("prf_rates_",range_tag,"_",year,".rds"))
 
+      # Compute PRF Premium Rates Across Program Years and Coverage Levels
       if(!file.exists(out_file_rates)){
         prf_index_data <- readRDS(file.path(output_directory, range_tag,paste0("prf_index_",range_tag,".rds")))
-        # prf_index_data <- prf_index_data[grid_id %in% unique(prf_index_data$grid_id)[1:10]]
-        # Compute PRF Premium Rates Across Program Years and Coverage Levels
 
-        prf_rate_data <- compute_prf_premium_rate(
+        prf_index_data <- prf_grid_weights[prf_index_data,on = intersect(names(prf_index_data), names(prf_grid_weights)),nomatch = 0]
+
+        prf_index_data <- rma_index_discretion_factor[prf_index_data,on = intersect(names(prf_index_data), names(rma_index_discretion_factor)),nomatch = 0]
+
+        prf_index_data[, index_adj := round(index_discretion_factor*index,3)]
+        prf_index_data[, index_raw := round(index,3)]
+
+        prf_index_data <- unique(prf_index_data[
+          , c("commodity_year" ,"index_history_range","grid_id","interval_code","index_raw","index_adj"), with = FALSE])
+
+        # prf_index_data <- prf_index_data[grid_id %in% unique(prf_index_data$grid_id)[1:10]]
+
+        prf_rate_data_raw <- compute_prf_premium_rate(
           program_years   = year,
           prf_index_data  = prf_index_data,
           identifiers     = c("index_history_range","grid_id","interval_code"),
           year_col        = "commodity_year",
-          index_value_col = "index")
-        saveRDS(prf_rate_data, out_file_rates)
-        rm(prf_rate_data,prf_index_data);gc()
+          index_value_col = "index_raw");gc()
+
+        prf_rate_data_adj <- compute_prf_premium_rate(
+          program_years   = year,
+          prf_index_data  = prf_index_data,
+          identifiers     = c("index_history_range","grid_id","interval_code"),
+          year_col        = "commodity_year",
+          index_value_col = "index_adj");gc()
+
+        prf_rate_data_raw[, discretion_flag := "raw"]
+
+        prf_rate_data_adj[, discretion_flag := "adjusted"]
+
+        saveRDS(rbind(prf_rate_data_raw,prf_rate_data_adj), out_file_rates)
+        rm(prf_rate_data_raw,prf_rate_data_adj,prf_index_data);gc()
       }
       invisible()
 
@@ -80,10 +107,51 @@ lapply(
 # Upload the assets
 function(){
   if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
+
+
+  piggyback::pb_release_create(
+    repo = "ftsiboe/indexDesignWindows",
+    tag  = "redesigns",
+    name = "PRF Index Redesign Outputs",
+    body = paste(
+      "This release contains outputs from alternative PRF index design experiments.",
+      "",
+      "## Contents",
+      "- **Index files**: `prf_index_WWW.rds` — the underlying PRF index constructed using a historical window of length `WWW` (years).",
+      "- **Rates & payment factors**: `prf_rates_WWW_YYYY.rds` — rates and payment factors for crop year `YYYY`, based on the same `WWW`-year index design.",
+      "",
+      "## Naming convention",
+      "- `WWW` = length of the historical window (years), zero-padded to three digits.",
+      "  - Example: `005` = 5-year historical window.",
+      "- `YYYY` = crop year for which rates/payment factors are produced.",
+      "",
+      "## Examples",
+      "- `prf_index_005.rds`",
+      "- `prf_rates_005_2024.rds`",
+      sep = "\n"
+    )
+  )
+
+  asset_list <- list.files(output_directory, full.names = TRUE, recursive = T)
+  asset_list <- asset_list[grepl(paste0(c(200,stringr::str_pad(45:60,pad="0",3)),collapse = "|"),asset_list)]
   piggyback::pb_upload(
-    list.files(output_directory, full.names = TRUE, recursive = T),
+    asset_list,
     repo  = "ftsiboe/indexDesignWindows",
     tag   = "redesigns",
     overwrite = TRUE
   )
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

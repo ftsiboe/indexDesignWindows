@@ -100,6 +100,15 @@ piggyback::pb_download(
   tag  = "prf_extracts",
   overwrite = TRUE)
 #----------------------------------------------------
+# Official PRF county penetration                 ####
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
+piggyback::pb_download(
+  file = "cpc_historic_precipitation.rds",
+  dest = "data",
+  repo = "ftsiboe/rfcipPRF",
+  tag  = "cpc",
+  overwrite = TRUE)
+#----------------------------------------------------
 
 
 

@@ -54,18 +54,6 @@ future_lapply(
 
 plan(sequential);gc()
 
-# Upload the assets
-function(){
-  if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
-  piggyback::pb_upload(
-    list.files(output_directory, full.names = TRUE, recursive = T),
-    repo  = "ftsiboe/indexDesignWindows",
-    tag   = "redesigns",
-    overwrite = TRUE
-  )
-}
-
-
 function(){
   # Estimate RMA Rate Discretion Factor                                        ####
   rm(list = ls(all = TRUE));library(data.table);library(rfcipPRF);gc()
@@ -96,17 +84,17 @@ function(){
 
   # Weighted least squares
   data <- data[
-    ,.(rma_discretion_factor_all = coef(lm(rma_index~cpc_index - 1))),
+    ,.(index_discretion_factor_all = coef(lm(rma_index~cpc_index - 1))),
     by=c("state_code", "county_code","county_fips")][
       data[
-        ,.(rma_discretion_factor = coef(lm(rma_index~cpc_index - 1))),
+        ,.(index_discretion_factor = coef(lm(rma_index~cpc_index - 1))),
         by=c("state_code", "county_code","county_fips","interval_code")],
       on=c("state_code", "county_code","county_fips"),nomatch = 0]
 
-  data <- data |> tidyr::spread(interval_code, rma_discretion_factor)
-  data[,"600"] <- data$rma_discretion_factor_all
-  data <- data |> tidyr::gather(interval_code, rma_discretion_factor, names(data)[!names(data) %in% c("state_code", "county_code","county_fips","rma_discretion_factor_all")])
-  data$rma_discretion_factor <- ifelse(data$rma_discretion_factor %in% NA,data$rma_discretion_factor_all,data$rma_discretion_factor)
+  data <- data |> tidyr::spread(interval_code, index_discretion_factor)
+  data[,"600"] <- data$index_discretion_factor_all
+  data <- data |> tidyr::gather(interval_code, index_discretion_factor, names(data)[!names(data) %in% c("state_code", "county_code","county_fips","index_discretion_factor_all")])
+  data$index_discretion_factor <- ifelse(data$index_discretion_factor %in% NA,data$index_discretion_factor_all,data$index_discretion_factor)
   data$interval_code <- as.numeric(data$interval_code)
 
   intervalKey <- readRDS("data/official_interval_names.rds")
@@ -118,14 +106,5 @@ function(){
 
   saveRDS(as.data.table(data),file.path(output_directory,"rma_index_discretion_factor.rds"))
 }
-
-
-
-
-
-
-
-
-
 
 

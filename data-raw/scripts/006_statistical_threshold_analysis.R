@@ -132,6 +132,17 @@ lapply(
 # Upload Baseline assets                                                     ####
 function(){
   if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
+
+  piggyback::pb_release_create(
+    repo = "ftsiboe/indexDesignWindows",
+    tag  = "statistical_threshold",
+    name = "Statistical Threshold Outputs",
+    body = paste(
+      "This release contains outputs from alternative PRF index design experiments statistical threshold analysis.",
+      sep = "\n"
+    )
+  )
+
   piggyback::pb_upload(
     list.files(output_directory, full.names = TRUE, recursive = T),
     repo  = "ftsiboe/indexDesignWindows",

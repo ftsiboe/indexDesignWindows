@@ -28,7 +28,7 @@ cpc_rates <- data.table::rbindlist(
       tryCatch({
         readRDS(i)[
           , lapply(.SD, function(x) mean(x, na.rm = TRUE)),
-          by = c("grid_id","interval_code","commodity_year","coverage_level"),
+          by = c("grid_id","interval_code","commodity_year","coverage_level","discretion_flag"),
           .SDcols = c("burnR.r","RMAtn.r","BSlnm.r","tnorm.r","lnorm.r","invgu.r","gamma.r","wibll.r","beta.r","llogis.r","raw_rate","base_rate")]
       }, error = function(e){NULL})
     }),fill = TRUE)
@@ -44,21 +44,21 @@ data <- data[
   ,.(rma_base_rate = weighted.mean(x=rma_base_rate,w=potential_range_pasture, na.rm=T),
      base_rate     = weighted.mean(x=base_rate,w=potential_range_pasture, na.rm=T)),
   by=c("commodity_year","state_code", "county_code","county_fips",
-       "interval_code","coverage_level_percent","coverage_level")]
+       "interval_code","coverage_level_percent","coverage_level","discretion_flag")]
 
 # Weighted least squares
 data <- data[
-  ,.(rma_discretion_factor_all = coef(lm(rma_base_rate~base_rate - 1))),
-  by=c("state_code", "county_code","county_fips")][
+  ,.(rate_discretion_factor_all = coef(lm(rma_base_rate~base_rate - 1))),
+  by=c("state_code", "county_code","county_fips","discretion_flag")][
     data[
-      ,.(rma_discretion_factor = coef(lm(rma_base_rate~base_rate - 1))),
-      by=c("state_code", "county_code","county_fips","interval_code")],
-    on=c("state_code", "county_code","county_fips"),nomatch = 0]
+      ,.(rate_discretion_factor = coef(lm(rma_base_rate~base_rate - 1))),
+      by=c("state_code", "county_code","county_fips","interval_code","discretion_flag")],
+    on=c("state_code", "county_code","county_fips","discretion_flag"),nomatch = 0]
 
-data <- data |> tidyr::spread(interval_code, rma_discretion_factor)
-data[,"600"] <- data$rma_discretion_factor_all
-data <- data |> tidyr::gather(interval_code, rma_discretion_factor, names(data)[!names(data) %in% c("state_code", "county_code","county_fips","rma_discretion_factor_all")])
-data$rma_discretion_factor <- ifelse(data$rma_discretion_factor %in% NA,data$rma_discretion_factor_all,data$rma_discretion_factor)
+data <- data |> tidyr::spread(interval_code, rate_discretion_factor)
+data[,"600"] <- data$rate_discretion_factor_all
+data <- data |> tidyr::gather(interval_code, rate_discretion_factor, names(data)[!names(data) %in% c("state_code", "county_code","county_fips","discretion_flag","rate_discretion_factor_all")])
+data$rate_discretion_factor <- ifelse(data$rate_discretion_factor %in% NA,data$rate_discretion_factor_all,data$rate_discretion_factor)
 data$interval_code <- as.numeric(data$interval_code)
 
 intervalKey <- readRDS("data/official_interval_names.rds")
@@ -73,6 +73,10 @@ saveRDS(as.data.table(data),file.path(output_directory,"rma_rate_discretion_fact
 #-------------------------------------------------------------------------------
 # Baseline Data                                                              ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+prf_grid_weights            <- readRDS("data/prf_grid_weights.rds")
+rma_index_discretion_factor <- readRDS("data-raw/releases/baseline/rma_index_discretion_factor.rds")
+rma_rate_discretion_factor  <- readRDS("data-raw/releases/baseline/rma_rate_discretion_factor.rds")
+
 
 cpc_index <- readRDS(file.path(redesigns_directory,"200/prf_index_200.rds"))[
   commodity_year %in% study_environment$year_beg:study_environment$year_end,.(cpc = mean(index, na.rm=T)),
@@ -86,6 +90,14 @@ data <- data[
   ,.(cpc = round(weighted.mean(x=cpc,w=potential_range_pasture, na.rm=T),3),
      rma = round(weighted.mean(x=rma_index,w=potential_range_pasture, na.rm=T),3)),
   by=c("commodity_year","state_code", "county_code","county_fips","interval_code")]
+
+
+
+
+
+
+
+
 
 prf_baseline_balance_index <- compute_balance(
   data,
@@ -154,6 +166,17 @@ saveRDS(prf_baseline_balance_rate,file.path(output_directory,"baseline_balance_r
 # Upload Baseline assets                                                     ####
 function(){
   if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
+
+  piggyback::pb_release_create(
+    repo = "ftsiboe/indexDesignWindows",
+    tag  = "baseline",
+    name = "Baseline Outputs",
+    body = paste(
+      "This release contains outputs from alternative PRF index design experiments baseline.",
+      sep = "\n"
+    )
+  )
+
   piggyback::pb_upload(
     list.files(output_directory, full.names = TRUE, recursive = T),
     repo  = "ftsiboe/indexDesignWindows",
