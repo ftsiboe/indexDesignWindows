@@ -24,14 +24,14 @@ data <- readRDS(file.path(output_directory,"rma_rate_discretion_factor.rds"))
 
 data <- add_break_categories(
   data = data,
-  variable = "rma_discretion_factor",
+  variable = "rate_discretion_factor",
   break_levels = c(-Inf,seq(0.25,2,0.25),Inf),
   break_labels = c("Less than 0.25","0.25 to 0.50","0.50 to 0.75","0.75 to 1.00",
                    "1.00 to 1.25","1.25 to 1.50","1.50 to 1.75","1.75 to 2.00","Greater than 2.00"))
 
 fig_rma_factor <- plot_prf_statistics(
   data = data,
-  outcome_variable = "rma_discretion_factor_cat",
+  outcome_variable = "rate_discretion_factor_cat",
   disaggregate_variable = "interval_name",
   plot_title = NULL,
   spatial_unit ="county",
@@ -70,10 +70,13 @@ fig_baseline_summary <- lapply(
       data <- reshape_statistics(
         data = data,
         statistic_variables = paste0(i,c("_x","_y")),
-        panel_variables = c("state_code", "county_code","county_fips"),
+        panel_variables = c("state_code", "county_code","county_fips","y_level"),
         disaggregate_labels = c("Official (RMA)", "Study (CPC-raw)"),
         rename = "mean")
-
+      data <- as.data.table(data)
+      data[, disaggregate := as.character(disaggregate)]
+      data[y_level %in% "cpcAdj01" & disaggregate %in% "Study (CPC-raw)", disaggregate := "Study (CPC-adjusted)"]
+      data <- as.data.frame(data)
       # data <- prf_grid_weights[data,on = intersect(names(data), names(prf_grid_weights)),nomatch = 0]
       # data <- data[
       #   ,.(mean = weighted.mean(x=mean,w=potential_range_pasture, na.rm=T)),
@@ -89,7 +92,6 @@ fig_baseline_summary <- lapply(
         plot_title = paste0(myline,statistics_list[i],myline))
 
       p
-
     }, error = function(e){NULL})
   })
 fig_baseline_summary <- Filter(Negate(is.null), fig_baseline_summary)

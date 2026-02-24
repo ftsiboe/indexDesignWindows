@@ -22,20 +22,16 @@
 #'   - `mean_bias`   = mean_x - mean_y
 #'   - `mae`         = mean(|x - y|)
 #'   - `rmse`        = sqrt(mean((x - y)^2))
-#'   - `smape`       = 2 * mean(|x - y| / (|x| + |y|)), with safe handling when
-#'                     denominator is zero
+#'   - `smape`       = 2 * mean(|x - y| / (|x| + |y|)), with safe handling when denominator is zero
 #'   - `ratio_means` = mean_x / mean_y
 #'   - `cv_ratio`    = cv_x / cv_y
-#'   - `mpd`         = mean percentage difference:
-#'                     \deqn{(((\bar{x} - \bar{y}) / \bar{y}) - 1) * 100}
+#'   - `mpd`         = mean percentage difference: \deqn{(((\bar{x} - \bar{y}) / \bar{y}) - 1) * 100}
 #'
 #' - **Balance / distribution comparison**
-#'   - `msd`       = mean standardized difference:
-#'       (mean_x - mean_y) / sqrt((sd_x^2 + sd_y^2) / 2)
+#'   - `msd`       = mean standardized difference: (mean_x - mean_y) / sqrt((sd_x^2 + sd_y^2) / 2)
 #'   - `var_ratio` = var_x / var_y
 #'   - `ks_stat`   = Kolmogorov-Smirnov D-statistic (two-sample)
-#'   - `emd`       = 1D Wasserstein / Earth Mover's Distance, approximated as
-#'                   mean absolute difference between quantiles of x and y
+#'   - `emd`       = 1D Wasserstein / Earth Mover's Distance, approximated as mean absolute difference between quantiles of x and y
 #'   - `hellinger` = Hellinger distance computed from common histograms
 #'
 #'   - `pvalue_mean`           = p-value for equality of means (paired t-test)
@@ -107,10 +103,10 @@
 #'
 #' @export
 compute_balance <- function(dt, col_x, col_y, by = NULL) {
-  
+
   dt <- data.table::as.data.table(dt)
   col_y <- setdiff(as.character(col_y), col_x)  # avoid comparing basis to itself
-  
+
   # Basic validation -----------------------------------------------------------
   if (!col_x %in% names(dt)) {
     stop("col_x '", col_x, "' not found in dt.")
@@ -123,7 +119,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
   if (length(col_y) == 0L) {
     stop("No valid comparison columns in col_y (after removing col_x).")
   }
-  
+
   # Helper: safe correlation (returns NA if degenerate) -----------------------
   safe_cor <- function(x, y, method) {
     if (length(x) < 2L || length(y) < 2L) return(NA_real_)
@@ -135,7 +131,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
     }
     stats::cor(x, y, method = method, use = "complete.obs")
   }
-  
+
   # Helper: concordance correlation coefficient (Lin's CCC) -------------------
   ccc_fun <- function(x, y) {
     if (length(x) < 2L || length(y) < 2L) return(NA_real_)
@@ -149,7 +145,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
     if (!is.finite(denom) || denom == 0) return(NA_real_)
     2 * sxy / denom
   }
-  
+
   # Helper: Earth Mover's Distance via quantiles ------------------------------
   emd_fun <- function(x, y, n_grid = 101L) {
     if (length(x) < 1L || length(y) < 1L) return(NA_real_)
@@ -158,7 +154,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
     qy <- stats::quantile(y, probs = probs, na.rm = TRUE, names = FALSE)
     mean(abs(qx - qy))
   }
-  
+
   # Helper: Hellinger distance using a shared histogram -----------------------
   hellinger_fun <- function(x, y, n_breaks = 20L) {
     if (length(x) < 1L || length(y) < 1L) return(NA_real_)
@@ -176,30 +172,30 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
     py <- py / sy
     sqrt(0.5 * sum((sqrt(px) - sqrt(py))^2))
   }
-  
+
   # Main loop across comparison columns ---------------------------------------
   out_list <- vector("list", length(col_y))
-  
+
   for (i in seq_along(col_y)) {
-    
+
     cmp <- col_y[i]
-    
+
     # Drop rows with missing pairs
     dt_sub <- dt[!is.na(get(col_x)) & !is.na(get(cmp))]
-    
+
     if (nrow(dt_sub) == 0L) {
       out_list[[i]] <- NULL
       next
     }
-    
+
     res <- dt_sub[
       ,
       {
         x <- get(col_x)
         y <- get(cmp)
-        
+
         n <- length(x)
-        
+
         # Means, variances, SDs ----------------------------------------------
         mean_x <- mean(x)
         mean_y <- mean(y)
@@ -207,43 +203,43 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
         var_y  <- stats::var(y)
         sd_x   <- sqrt(var_x)
         sd_y   <- sqrt(var_y)
-        
+
         # Coefficients of variation ------------------------------------------
         cv_x <- if (is.finite(mean_x) && mean_x != 0) sd_x / mean_x else NA_real_
         cv_y <- if (is.finite(mean_y) && mean_y != 0) sd_y / mean_y else NA_real_
         cv_ratio <- if (is.finite(cv_y) && cv_y != 0) cv_x / cv_y else NA_real_
-        
+
         # Bias & scale metrics -----------------------------------------------
         diff_xy <- x - y
         abs_diff <- abs(diff_xy)
         mean_bias <- mean(diff_xy)
         mae <- mean(abs_diff)
         rmse <- sqrt(mean(diff_xy^2))
-        
+
         denom_smape <- abs(x) + abs(y)
         smape <- if (all(denom_smape == 0)) {
           NA_real_
         } else {
           mean(2 * abs_diff[denom_smape > 0] / denom_smape[denom_smape > 0])
         }
-        
+
         ratio_means <- if (is.finite(mean_y) && mean_y != 0) {
           mean_x / mean_y
         } else NA_real_
-        
+
         # Mean percentage difference -----------------------------------------
         mpd <- if (is.finite(mean_y) && mean_y != 0) {
           (((mean_x - mean_y) / mean_y) - 1) * 100
         } else NA_real_
-        
+
         # MSD and variance ratio ---------------------------------------------
         pooled_sd <- sqrt((sd_x^2 + sd_y^2) / 2)
         msd <- if (is.finite(pooled_sd) && pooled_sd > 0) {
           (mean_x - mean_y) / pooled_sd
         } else NA_real_
-        
+
         var_ratio <- if (is.finite(var_y) && var_y > 0) var_x / var_y else NA_real_
-        
+
         # KS statistic + p-value ---------------------------------------------
         ks_obj <- tryCatch(
           stats::ks.test(x, y),
@@ -251,36 +247,36 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
         )
         ks_stat <- if (is.null(ks_obj)) NA_real_ else ks_obj$statistic[[1]]
         pvalue_ks <- if (is.null(ks_obj)) NA_real_ else ks_obj$p.value
-        
+
         # Correlations and concordance ---------------------------------------
         pearson_cor  <- safe_cor(x, y, method = "pearson")
         spearman_cor <- safe_cor(x, y, method = "spearman")
         kendall_cor  <- safe_cor(x, y, method = "kendall")
         ccc          <- ccc_fun(x, y)
-        
+
         # Distribution distances ---------------------------------------------
         emd       <- emd_fun(x, y)
         hellinger <- hellinger_fun(x, y)
-        
+
         # Quantiles and differences ------------------------------------------
         probs <- c(0.10, 0.25, 0.50, 0.75, 0.90)
         qx <- stats::quantile(x, probs = probs, na.rm = TRUE, names = FALSE)
         qy <- stats::quantile(y, probs = probs, na.rm = TRUE, names = FALSE)
-        
+
         q10_x <- qx[1]; q25_x <- qx[2]; q50_x <- qx[3]; q75_x <- qx[4]; q90_x <- qx[5]
         q10_y <- qy[1]; q25_y <- qy[2]; q50_y <- qy[3]; q75_y <- qy[4]; q90_y <- qy[5]
-        
+
         q10_diff <- q10_x - q10_y
         q25_diff <- q25_x - q25_y
         q50_diff <- q50_x - q50_y
         q75_diff <- q75_x - q75_y
         q90_diff <- q90_x - q90_y
-        
+
         # Zero-mass / structural zeros ---------------------------------------
         zero_share_x <- mean(x == 0)
         zero_share_y <- mean(y == 0)
         zero_share_diff <- zero_share_x - zero_share_y
-        
+
         pvalue_zero_mcnemar <- NA_real_
         if (n >= 2L) {
           tab <- table(
@@ -298,14 +294,14 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             }
           }
         }
-        
+
         # Bounded-scale / logit-space metrics --------------------------------
         mean_logit_x     <- NA_real_
         mean_logit_y     <- NA_real_
         mean_logit_diff  <- NA_real_
         rmse_logit       <- NA_real_
         pvalue_mean_logit <- NA_real_
-        
+
         # Compute only if all x,y are in [0, 1]
         if (n >= 2L) {
           rng_x <- range(x, na.rm = TRUE)
@@ -314,7 +310,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             is.finite(rng_y[1]) && is.finite(rng_y[2]) &&
             rng_x[1] >= 0 && rng_x[2] <= 1 &&
             rng_y[1] >= 0 && rng_y[2] <= 1
-          
+
           if (bounded) {
             eps <- 1e-6
             px <- pmin(pmax(x, eps), 1 - eps)
@@ -322,12 +318,12 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             lx <- stats::qlogis(px)
             ly <- stats::qlogis(py)
             diff_logit <- lx - ly
-            
+
             mean_logit_x    <- mean(lx)
             mean_logit_y    <- mean(ly)
             mean_logit_diff <- mean(diff_logit)
             rmse_logit      <- sqrt(mean(diff_logit^2))
-            
+
             logit_test <- tryCatch(
               stats::t.test(lx, ly, paired = TRUE),
               error = function(e) NULL
@@ -337,7 +333,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             }
           }
         }
-        
+
         # Hypothesis tests & p-values (means/variances) ----------------------
         # Means: paired t-test H0: mean(x - y) = 0
         if (n >= 2L) {
@@ -349,7 +345,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
         } else {
           pvalue_mean <- NA_real_
         }
-        
+
         # Variance F-test: var.test(x, y)
         if (n >= 2L) {
           var_test <- tryCatch(
@@ -360,16 +356,16 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
         } else {
           pvalue_var <- NA_real_
         }
-        
+
         # Levene / Brown-Forsythe / Kruskal-Wallis (two groups: x vs y) -----
         pvalue_levene <- NA_real_
         pvalue_brown_forsythe <- NA_real_
         pvalue_kruskal_wallis <- NA_real_
-        
+
         if (n >= 2L) {
           z <- c(x, y)
           g <- factor(rep(c("x", "y"), times = c(length(x), length(y))))
-          
+
           # Levene: deviations from group means
           mu <- tapply(z, g, mean)
           w_mean <- abs(z - mu[g])
@@ -381,7 +377,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             lev_aov <- stats::anova(lev_fit)
             pvalue_levene <- lev_aov[["Pr(>F)"]][1L]
           }
-          
+
           # Brown-Forsythe: deviations from group medians
           med <- tapply(z, g, stats::median)
           w_med <- abs(z - med[g])
@@ -393,7 +389,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             bf_aov <- stats::anova(bf_fit)
             pvalue_brown_forsythe <- bf_aov[["Pr(>F)"]][1L]
           }
-          
+
           # Kruskal-Wallis
           kw_obj <- tryCatch(
             stats::kruskal.test(z, g),
@@ -403,12 +399,12 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             pvalue_kruskal_wallis <- kw_obj$p.value
           }
         }
-        
+
         # Correlation p-values -----------------------------------------------
         pvalue_pearson_cor  <- NA_real_
         pvalue_spearman_cor <- NA_real_
         pvalue_kendall_cor  <- NA_real_
-        
+
         if (n >= 3L) {
           # Pearson
           pearson_test <- tryCatch(
@@ -418,7 +414,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
           if (!is.null(pearson_test)) {
             pvalue_pearson_cor <- pearson_test$p.value
           }
-          
+
           # Spearman
           spearman_test <- tryCatch(
             stats::cor.test(x, y, method = "spearman", exact = FALSE),
@@ -427,7 +423,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
           if (!is.null(spearman_test)) {
             pvalue_spearman_cor <- spearman_test$p.value
           }
-          
+
           # Kendall
           kendall_test <- tryCatch(
             stats::cor.test(x, y, method = "kendall", exact = FALSE),
@@ -437,7 +433,7 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
             pvalue_kendall_cor <- kendall_test$p.value
           }
         }
-        
+
         list(
           y_level      = cmp,
           n            = n,
@@ -502,9 +498,9 @@ compute_balance <- function(dt, col_x, col_y, by = NULL) {
       },
       by = by
     ]
-    
+
     out_list[[i]] <- res
   }
-  
+
   data.table::rbindlist(out_list, use.names = TRUE, fill = TRUE)
 }

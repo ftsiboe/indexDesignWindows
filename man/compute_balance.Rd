@@ -64,21 +64,17 @@ Metrics include:
 \item \code{mean_bias}   = mean_x - mean_y
 \item \code{mae}         = mean(|x - y|)
 \item \code{rmse}        = sqrt(mean((x - y)^2))
-\item \code{smape}       = 2 * mean(|x - y| / (|x| + |y|)), with safe handling when
-denominator is zero
+\item \code{smape}       = 2 * mean(|x - y| / (|x| + |y|)), with safe handling when denominator is zero
 \item \code{ratio_means} = mean_x / mean_y
 \item \code{cv_ratio}    = cv_x / cv_y
-\item \code{mpd}         = mean percentage difference:
-\deqn{(((\bar{x} - \bar{y}) / \bar{y}) - 1) * 100}
+\item \code{mpd}         = mean percentage difference: \deqn{(((\bar{x} - \bar{y}) / \bar{y}) - 1) * 100}
 }
 \item \strong{Balance / distribution comparison}
 \itemize{
-\item \code{msd}       = mean standardized difference:
-(mean_x - mean_y) / sqrt((sd_x^2 + sd_y^2) / 2)
+\item \code{msd}       = mean standardized difference: (mean_x - mean_y) / sqrt((sd_x^2 + sd_y^2) / 2)
 \item \code{var_ratio} = var_x / var_y
 \item \code{ks_stat}   = Kolmogorov-Smirnov D-statistic (two-sample)
-\item \code{emd}       = 1D Wasserstein / Earth Mover's Distance, approximated as
-mean absolute difference between quantiles of x and y
+\item \code{emd}       = 1D Wasserstein / Earth Mover's Distance, approximated as mean absolute difference between quantiles of x and y
 \item \code{hellinger} = Hellinger distance computed from common histograms
 \item \code{pvalue_mean}           = p-value for equality of means (paired t-test)
 \item \code{pvalue_ks}             = p-value from Kolmogorov-Smirnov test

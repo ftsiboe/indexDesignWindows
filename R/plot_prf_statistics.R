@@ -186,7 +186,7 @@ plot_prf_statistics <- function(
     p <- p +
       facet_wrap(
         stats::as.formula(paste("~", disaggregate_variable)),
-        ncol = 2
+        ncol = 3
       )
   }
 

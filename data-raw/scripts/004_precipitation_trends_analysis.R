@@ -28,7 +28,7 @@ devtools::document()
 # -----------------------
 study_environment <- readRDS("data/study_environment.rds")
 
-output_directory <- "data-raw/releases/precipitation_trend"
+output_directory <- "data-raw/fastscratch/precipitation_trend"
 dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
 
 prf_grid_weights <- as.data.table(readRDS("data/prf_grid_weights.rds"))
@@ -192,7 +192,7 @@ if (!is.na(slurm_id)) {
 
 invisible(
   lapply(history_windows, function(i) {
-    tryCatch({
+    #tryCatch({
 
       output_file_county <- file.path(
         output_directory,
@@ -284,10 +284,7 @@ invisible(
       message("Saved county results: ", output_file_county)
 
       invisible(TRUE)
-    }, error = function(e) {
-      message("Window ", i, " failed: ", conditionMessage(e))
-      invisible(FALSE)
-    })
+    #}, error = function(e) {message("Window ", i, " failed: ", conditionMessage(e))})
   })
 )
 
@@ -295,39 +292,60 @@ invisible(
 # Upload assets
 # -----------------------
 function(){
-  if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
 
-  piggyback::pb_release_create(
-    repo = "ftsiboe/indexDesignWindows",
-    tag  = "precipitation_trend",
-    name = "PRF Grid and County Precipitation Trend Estimates",
-    body = paste(
-      "This release contains grid-level and county-level precipitation trend estimates",
-      "for PRF grids using a spatially pooled (queen contiguity) fixed-effects panel framework.",
-      "",
-      "Key features:",
-      "- Grid-level trend estimates using pooled focal + neighboring grids.",
-      "- Fixed effects at the grid × interval level.",
-      "- Two-way clustered standard errors (grid×interval and year).",
-      "- Rolling historical windows (5–60 years and full sample).",
-      "- County-level aggregation using PRF acreage weights.",
-      "- County classification: Positive, Negative, or No statistically significant trend (p ≤ 0.05).",
-      "",
-      "Outputs include:",
-      "- grid_precipitation_trends_XXX.rds",
-      "- county_precipitation_trends_XXX.rds",
-      "",
-      "These files support evaluation of alternative PRF index design windows and spatial exposure sensitivity.",
-      sep = "\n"
-    )
-  )
+  grid_precipitation <- data.table::rbindlist(
+    lapply(
+      list.files("data-raw/fastscratch/precipitation_trend",full.names = TRUE,pattern = "grid_precipitation"),
+      function(i){
+        tryCatch({
+          readRDS(i)
+        }, error = function(e){NULL})
+      }),fill = TRUE)
+  saveRDS(grid_precipitation,"data-raw/output/grid_precipitation_trend.rds")
 
-  piggyback::pb_upload(
-    list.files(output_directory, full.names = TRUE, recursive = T),
-    repo  = "ftsiboe/indexDesignWindows",
-    tag   = "precipitation_trend",
-    overwrite = TRUE
-  )
+  county_precipitation <- data.table::rbindlist(
+    lapply(
+      list.files("data-raw/fastscratch/precipitation_trend",full.names = TRUE,pattern = "county_precipitation"),
+      function(i){
+        tryCatch({
+          readRDS(i)
+        }, error = function(e){NULL})
+      }),fill = TRUE)
+  saveRDS(county_precipitation,"data-raw/output/county_precipitation_trend.rds")
+
+  # if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
+  #
+  # piggyback::pb_release_create(
+  #   repo = "ftsiboe/indexDesignWindows",
+  #   tag  = "precipitation_trend",
+  #   name = "PRF Grid and County Precipitation Trend Estimates",
+  #   body = paste(
+  #     "This release contains grid-level and county-level precipitation trend estimates",
+  #     "for PRF grids using a spatially pooled (queen contiguity) fixed-effects panel framework.",
+  #     "",
+  #     "Key features:",
+  #     "- Grid-level trend estimates using pooled focal + neighboring grids.",
+  #     "- Fixed effects at the grid × interval level.",
+  #     "- Two-way clustered standard errors (grid×interval and year).",
+  #     "- Rolling historical windows (5–60 years and full sample).",
+  #     "- County-level aggregation using PRF acreage weights.",
+  #     "- County classification: Positive, Negative, or No statistically significant trend (p ≤ 0.05).",
+  #     "",
+  #     "Outputs include:",
+  #     "- grid_precipitation_trends_XXX.rds",
+  #     "- county_precipitation_trends_XXX.rds",
+  #     "",
+  #     "These files support evaluation of alternative PRF index design windows and spatial exposure sensitivity.",
+  #     sep = "\n"
+  #   )
+  # )
+  #
+  # piggyback::pb_upload(
+  #   list.files(output_directory, full.names = TRUE, recursive = T),
+  #   repo  = "ftsiboe/indexDesignWindows",
+  #   tag   = "precipitation_trend",
+  #   overwrite = TRUE
+  # )
 }
 
 
