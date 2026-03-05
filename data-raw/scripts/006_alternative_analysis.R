@@ -227,10 +227,10 @@ function(){
 
   piggyback::pb_release_create(
     repo = "ftsiboe/indexDesignWindows",
-    tag  = "statistical_threshold",
-    name = "Statistical Threshold Outputs",
+    tag  = "alternative",
+    name = "Alternative Simulation Outputs",
     body = paste(
-      "This release contains outputs from alternative PRF index design experiments statistical threshold analysis.",
+      "This release contains outputs from alternative PRF index design experiments.",
       sep = "\n"
     )
   )
@@ -238,7 +238,7 @@ function(){
   piggyback::pb_upload(
     list.files(output_directory, full.names = TRUE, recursive = T),
     repo  = "ftsiboe/indexDesignWindows",
-    tag   = "statistical_threshold",
+    tag   = "alternative",
     overwrite = TRUE
   )
 }
