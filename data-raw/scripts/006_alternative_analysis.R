@@ -3,10 +3,12 @@ rm(list = ls(all = TRUE));library(data.table);library(future.apply);gc()
 devtools::document()
 study_environment    <- readRDS("data/study_environment.rds")
 redesigns_directory  <- study_environment$wd$redesigns
-output_directory <- "data-raw/releases/statistical_threshold"
+
+output_directory <- "data-raw/releases/alternative"
 if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
 
-
+prf_sobtpu <- readRDS("data/prf_sobtpu.rds")
+prf_sobtpu[,coverage_level:=round(coverage_level_percent*100)]
 prf_grid_weights     <- readRDS("data/prf_grid_weights.rds")
 rma_index_discretion_factor <- readRDS("data-raw/releases/baseline/rma_index_discretion_factor.rds")
 
@@ -18,7 +20,6 @@ rma_rate_discretion_factor[discretion_flag %in% "raw",discretion_flag := "rate_d
 rma_rate_discretion_factor[discretion_flag %in% "adjusted",discretion_flag := "rate_discretion_factor_adjusted" ]
 rma_rate_discretion_factor <- rma_rate_discretion_factor |> tidyr::spread(discretion_flag, rate_discretion_factor)
 rma_rate_discretion_factor <- as.data.table(rma_rate_discretion_factor)
-
 
 alternative_list <- list.files(redesigns_directory,pattern = "prf_rates_",full.names = T,recursive = T)
 alternative_list <- alternative_list[!grepl("200",alternative_list)]
@@ -43,18 +44,20 @@ baseline_program <- baseline_program[
   on = c("state_code", "county_code","county_fips","interval_code","commodity_year"),nomatch = 0]
 
 baseline_program <- baseline_program[
-  ,.(baseline_index          = mean(baseline_index, na.rm=T),
-     baseline_index_adj01    = mean(baseline_index_adj, na.rm=T),
-     baseline_base_rate      = mean(cpc_base_rate, na.rm=T),
-     baseline_base_rate_adj01  = mean(cpc_base_rate_adj01, na.rm=T),
-     baseline_base_rate_adj02  = mean(cpc_base_rate_adj02, na.rm=T),
-     baseline_base_rate_adj03  = mean(cpc_base_rate_adj03, na.rm=T),
-     baseline_payment_factor     = mean(cpc_payment_factor, na.rm=T),
-     baseline_payment_factor_adj01 = mean(cpc_payment_factor_adj01, na.rm=T)),
+  ,.(baseline_index_adj00          = mean(baseline_index, na.rm=T),
+     baseline_index_adj01          = mean(baseline_index_adj, na.rm=T),
+     baseline_base_rate_adj00      = mean(cpc_base_rate, na.rm=T),
+     baseline_base_rate_adj01      = mean(cpc_base_rate_adj01, na.rm=T),
+     baseline_base_rate_adj02      = mean(cpc_base_rate_adj02, na.rm=T),
+     baseline_base_rate_adj03      = mean(cpc_base_rate_adj03, na.rm=T),
+     baseline_payment_factor_adj00 = mean(cpc_payment_factor, na.rm=T),
+     baseline_payment_factor_adj01 = mean(cpc_payment_factor_adj01, na.rm=T),
+     baseline_payment_factor_adj02 = mean(cpc_payment_factor_adj01, na.rm=T),
+     baseline_payment_factor_adj03 = mean(cpc_payment_factor_adj01, na.rm=T)),
   by=c("commodity_year","state_code", "county_code","county_fips","interval_code","coverage_level")]
 
 # If running under a SLURM array job, filter the design_specs by the current task ID
-if (!is.na(as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID")))) {
+if(!is.na(as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID")))) {
   alternative_list <- alternative_list[as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))]
 }
 
@@ -63,9 +66,13 @@ lapply(
   function(history_range) {
     tryCatch({
       # history_range <- unique(basename(dirname(alternative_list)))[1]
-      out_file <- file.path(output_directory,paste0("threshold_analysis_",history_range,".rds"))
-      if(!file.exists(out_file)){
 
+      statistical_out_file <- file.path(output_directory,paste0("statistical_analysis_",history_range,".rds"))
+      insurance_out_file   <- file.path(output_directory,paste0("insurance_analysis_",history_range,".rds"))
+
+      if(!file.exists(statistical_out_file)){
+
+        # aggregate data
         data <- data.table::rbindlist(
           lapply(
             alternative_list[grepl(history_range,alternative_list)],
@@ -92,7 +99,6 @@ lapply(
                 cpc_rates[,alternative_base_rate_adj01 := round(alternative_base_rate*rate_discretion_factor_raw,3)]
                 cpc_rates[,alternative_base_rate_adj03 := round(alternative_base_rate_adj02*rate_discretion_factor_adjusted,3)]
 
-
                 cpc_index <- readRDS(list.files(dirname(i),pattern = "prf_index_",full.names = T))[
                   commodity_year %in% unique(cpc_rates$commodity_year),.(alternative_index = mean(index, na.rm=T)),
                   by=c("grid_id","interval_code")]
@@ -109,14 +115,16 @@ lapply(
                 cpc_rates[,alternative_payment_factor_adj := ifelse(alternative_index_adj >= coverage_level, 0,coverage_level - alternative_index_adj) / coverage_level ]
 
                 cpc_rates <- cpc_rates[
-                  ,.(alternative_index          = mean(alternative_index, na.rm=T),
-                     alternative_index_adj01      = mean(alternative_index_adj, na.rm=T),
-                     alternative_base_rate      = mean(alternative_base_rate, na.rm=T),
-                     alternative_base_rate_adj01  = mean(alternative_base_rate_adj01, na.rm=T),
-                     alternative_base_rate_adj02  = mean(alternative_base_rate_adj02, na.rm=T),
-                     alternative_base_rate_adj03  = mean(alternative_base_rate_adj03, na.rm=T),
-                     alternative_payment_factor     = mean(alternative_payment_factor, na.rm=T),
-                     alternative_payment_factor_adj01 = mean(alternative_payment_factor_adj, na.rm=T)),
+                  ,.(alternative_index_adj00          = mean(alternative_index, na.rm=T),
+                     alternative_index_adj01          = mean(alternative_index_adj, na.rm=T),
+                     alternative_base_rate_adj00      = mean(alternative_base_rate, na.rm=T),
+                     alternative_base_rate_adj01      = mean(alternative_base_rate_adj01, na.rm=T),
+                     alternative_base_rate_adj02      = mean(alternative_base_rate_adj02, na.rm=T),
+                     alternative_base_rate_adj03      = mean(alternative_base_rate_adj03, na.rm=T),
+                     alternative_payment_factor_adj00 = mean(alternative_payment_factor, na.rm=T),
+                     alternative_payment_factor_adj01 = mean(alternative_payment_factor_adj, na.rm=T),
+                     alternative_payment_factor_adj02 = mean(alternative_payment_factor_adj, na.rm=T),
+                     alternative_payment_factor_adj03 = mean(alternative_payment_factor_adj, na.rm=T)),
                   by=c("state_code", "county_code","county_fips","interval_code","commodity_year","coverage_level","index_history_range")]
 
                 cpc_rates
@@ -127,12 +135,53 @@ lapply(
 
         data <- baseline_program[data,on = intersect(names(data), names(baseline_program)),nomatch = 0]
 
-        balance_final <- list()
+        # actuarial analysis
+        sobtpu <- prf_sobtpu[data,on = intersect(names(data), names(prf_sobtpu)),nomatch = 0]
 
+        for(nm in c("adj00","adj01","adj02","adj03")){
+          sobtpu[, (paste0("sim_baseline_insured_acres_",nm))           := insured_acres]
+          sobtpu[, (paste0("sim_alternative_insured_acres_",nm))        := insured_acres]
+
+          sobtpu[, (paste0("sim_baseline_liability_amount_",nm))        := liability_amount]
+          sobtpu[, (paste0("sim_alternative_liability_amount_",nm))     := liability_amount]
+
+          sobtpu[, (paste0("sim_baseline_total_premium_amount_",nm))    := liability_amount*get(paste0("baseline_base_rate_",nm))]
+          sobtpu[, (paste0("sim_alternative_total_premium_amount_",nm)) := liability_amount*get(paste0("alternative_base_rate_",nm))]
+
+          sobtpu[, (paste0("sim_baseline_subsidy_amount_",nm))          := (subsidy_amount/total_premium_amount)*get(paste0("sim_baseline_total_premium_amount_",nm))]
+          sobtpu[, (paste0("sim_alternative_subsidy_amount_",nm))       := (subsidy_amount/total_premium_amount)*get(paste0("sim_alternative_total_premium_amount_",nm))]
+
+          sobtpu[, (paste0("sim_baseline_indemnity_amount_",nm))        := liability_amount*get(paste0("baseline_payment_factor_",nm))]
+          sobtpu[, (paste0("sim_alternative_indemnity_amount_",nm))     := liability_amount*get(paste0("alternative_payment_factor_",nm))]
+        }
+
+        sobtpu <- sobtpu[
+          , lapply(.SD, function(x) sum(x, na.rm = TRUE)),
+          by = c("commodity_year","state_code","county_code","county_fips","interval_code","coverage_level","index_history_range"),
+          .SDcols = c(names(sobtpu)[grepl("sim_",names(sobtpu))])]
+
+        sobtpu <- sobtpu |> tidyr::gather(type, value, c(names(sobtpu)[grepl("sim_",names(sobtpu))]))
+        sobtpu <- tidyr::separate(sobtpu,"type", into = c("type","adjustment"), sep="_adj")
+        sobtpu$type <- gsub("sim_","",sobtpu$type)
+        sobtpu <- sobtpu |> tidyr::spread(type, value)
+        sobtpu$adjustment <- as.numeric( sobtpu$adjustment)
+        saveRDS(as.data.table(sobtpu),insurance_out_file)
+
+        rm(sobtpu);gc()
+
+        # Economic analysis
+        # sobtpu$allocation <- ifelse(
+        #   sobtpu$alternative_total_premium_amount >
+        #     sobtpu$baseline_total_premium_amount,
+        #   "Cede",
+        #   "Retain")
+
+        # Statistical analysis
+        balance_final <- list()
         balance_final[[length(balance_final)+1]] <- compute_balance(
           dt=data[
-            ,.(alternative_index = mean(alternative_index, na.rm=T),
-               baseline_index = mean(baseline_index, na.rm=T)),
+            ,.(alternative_index = mean(alternative_index_adj00, na.rm=T),
+               baseline_index    = mean(baseline_index_adj00, na.rm=T)),
             by=c("state_code", "county_code","county_fips","interval_code","commodity_year","coverage_level","index_history_range")],
           col_x="baseline_index", col_y="alternative_index",
           by = c("state_code", "county_code","county_fips","index_history_range"))
@@ -146,11 +195,11 @@ lapply(
           by = c("state_code", "county_code","county_fips","index_history_range"))
 
         balance_list <- list(
-          c("baseline_base_rate","alternative_base_rate"),
+          c("baseline_base_rate_adj00","alternative_base_rate_adj00"),
           c("baseline_base_rate_adj01","alternative_base_rate_adj01"),
           c("baseline_base_rate_adj02","alternative_base_rate_adj02"),
           c("baseline_base_rate_adj03","alternative_base_rate_adj03"),
-          c("baseline_payment_factor","alternative_payment_factor"),
+          c("baseline_payment_factor_adj00","alternative_payment_factor_adj00"),
           c("baseline_payment_factor_adj01","alternative_payment_factor_adj01")
         )
 
@@ -165,8 +214,9 @@ lapply(
 
         rm(data);gc();gc()
 
-        saveRDS(as.data.table(balance_final),out_file)
+        saveRDS(as.data.table(balance_final),statistical_out_file)
       }
+
     }, error = function(e){NULL})
   })
 

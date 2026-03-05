@@ -109,6 +109,22 @@ piggyback::pb_download(
   tag  = "cpc",
   overwrite = TRUE)
 #----------------------------------------------------
+# Official PRF SOB                                ####
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
+data <- data.table::rbindlist(
+  lapply(
+    study_environment$year_beg:study_environment$year_end,
+    function(year) {
+      tryCatch({
+        rfcipPRF::get_prf_fcip_dataset(
+          dataset = "sobtpu",year = year,
+          force = TRUE)
+      }, error = function(e){NULL})
+    }),fill = TRUE)
+
+saveRDS(data,"data/prf_sobtpu.rds")
+
+#----------------------------------------------------
 
 
 
