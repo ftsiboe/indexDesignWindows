@@ -28,35 +28,41 @@ data <- data.table::rbindlist(
     list.files(output_directory,full.names = TRUE),
     function(i) {
       tryCatch({
-        # i <- "data-raw/releases/statistical_threshold/threshold_analysis_006.rds"
+        # i <- list.files(output_directory,full.names = TRUE)[1]
         data <- as.data.frame(readRDS(i))
 
         data <- data[c(xlist,"index_history_range","state_code", "county_code","county_fips","coverage_level","y_level")]
-        unique(data$y_level)
 
-        data$disaggregate <- ifelse(data$y_level %in% "alternative_index","Index",NA)
 
-        data$disaggregate <- ifelse(data$y_level %in% "alternative_base_rate",
-                                    paste0("Base rate (raw) at ",data$coverage_level,"%"),
+        data <- data[data$y_level %in% c("alternative_index_adj01" ,"alternative_base_rate_adj03" ,"alternative_payment_factor_adj01"),]
+
+        data$disaggregate <- ifelse(data$y_level %in% "alternative_index_adj01","Index",NA)
+
+        data$disaggregate <- ifelse(data$y_level %in% "alternative_base_rate_adj03",
+                                    paste0("Base rate at ",data$coverage_level,"%"),
                                     data$disaggregate)
 
-        data$disaggregate <- ifelse(data$y_level %in% "alternative_base_rate_adj",
-                                    paste0("Base rate (adjusted) at ",data$coverage_level,"%"),
-                                    data$disaggregate)
-
-        data$disaggregate <- ifelse(data$y_level %in% "alternative_payment_factor",
+        data$disaggregate <- ifelse(data$y_level %in% "alternative_payment_factor_adj01",
                                     paste0("Payment factor at ",data$coverage_level,"%"),
                                     data$disaggregate)
 
-        data <- rbind(data[names(data)],
-                      data[data$coverage_level %in% 90, names(data)],
-                      data[data$coverage_level %in% 90,names(data)])
+        unique(data$disaggregate)
+
+        data <- data[
+          data$coverage_level %in% 90 |
+            data$y_level %in% "alternative_index_adj01", names(data)
+        ]
+
+        # unique(data$disaggregate)
+        #
+        # rbind(data[names(data)],
+        #               data[data$coverage_level %in% 90, names(data)],
+        #               data[data$coverage_level %in% 90, names(data)])
 
         data$disaggregate <- factor(
           data$disaggregate,
-          levels = c("Index","Base rate (raw) at 90%","Base rate (adjusted) at 90%","Payment factor at 90%"),
-          labels = c("Index","Base rate (raw)\nfor 90% coverage level",
-                     "Base rate (adjusted)\nfor 90% coverage level",
+          levels = c("Index","Base rate at 90%","Payment factor at 90%"),
+          labels = c("Index","Base rate\nfor 90% coverage level",
                      "Payment factor\nfor 90% coverage level")
         )
 
@@ -86,9 +92,20 @@ data <- add_break_categories(
 
 data <- data[!data$value_cat %in% NA,]
 
+
+county_precipitation_trend <- readRDS("data-raw/releases/outputs/county_precipitation_trend.rds")
+
+
+
+
+
+
+
+
+
+
 data <- as.data.table(data)[
-  disaggregate %in% c("Index","Base rate (raw)\nfor 90% coverage level",
-                      "Base rate (adjusted)\nfor 90% coverage level",
+  disaggregate %in% c("Index","Base rate\nfor 90% coverage level",
                       "Payment factor\nfor 90% coverage level") &
     variable %in% c("pvalue_mean","pvalue_var","pvalue_kruskal_wallis","pvalue_ks"),
   .(
