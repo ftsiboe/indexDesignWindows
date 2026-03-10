@@ -141,27 +141,90 @@ lapply(
         # actuarial analysis
         sobtpu <- prf_sobtpu[data,on = intersect(names(data), names(prf_sobtpu)),nomatch = 0]
 
-        for(nm in c("adj00","adj01","adj02","adj03")){
-          sobtpu[, (paste0("sim_baseline_insured_acres_",nm))           := insured_acres]
-          sobtpu[, (paste0("sim_alternative_insured_acres_",nm))        := insured_acres]
+        for (nm in c("adj00", "adj01", "adj02", "adj03")) {
 
-          sobtpu[, (paste0("sim_baseline_liability_amount_",nm))        := liability_amount]
-          sobtpu[, (paste0("sim_alternative_liability_amount_",nm))     := liability_amount]
+          baseline_liab <- paste0("sim_baseline_liability_per_acre_", nm)
+          alt_liab      <- paste0("sim_alternative_liability_per_acre_", nm)
 
-          sobtpu[, (paste0("sim_baseline_total_premium_amount_",nm))    := liability_amount*get(paste0("baseline_base_rate_",nm))]
-          sobtpu[, (paste0("sim_alternative_total_premium_amount_",nm)) := liability_amount*get(paste0("alternative_base_rate_",nm))]
+          baseline_prem <- paste0("sim_baseline_premium_per_acre_", nm)
+          alt_prem      <- paste0("sim_alternative_premium_per_acre_", nm)
 
-          sobtpu[, (paste0("sim_baseline_subsidy_amount_",nm))          := (subsidy_amount/total_premium_amount)*get(paste0("sim_baseline_total_premium_amount_",nm))]
-          sobtpu[, (paste0("sim_alternative_subsidy_amount_",nm))       := (subsidy_amount/total_premium_amount)*get(paste0("sim_alternative_total_premium_amount_",nm))]
+          baseline_sub  <- paste0("sim_baseline_subsidy_per_acre_", nm)
+          alt_sub       <- paste0("sim_alternative_subsidy_per_acre_", nm)
 
-          sobtpu[, (paste0("sim_baseline_indemnity_amount_",nm))        := liability_amount*get(paste0("baseline_payment_factor_",nm))]
-          sobtpu[, (paste0("sim_alternative_indemnity_amount_",nm))     := liability_amount*get(paste0("alternative_payment_factor_",nm))]
+          baseline_paid <- paste0("sim_baseline_paid_per_acre_", nm)
+          alt_paid      <- paste0("sim_alternative_paid_per_acre_", nm)
+
+          baseline_acre <- paste0("sim_baseline_insured_acres_", nm)
+          alt_acre      <- paste0("sim_alternative_insured_acres_", nm)
+
+          baseline_liab_amt <- paste0("sim_baseline_liability_amount_", nm)
+          alt_liab_amt      <- paste0("sim_alternative_liability_amount_", nm)
+
+          baseline_totprem  <- paste0("sim_baseline_total_premium_amount_", nm)
+          alt_totprem       <- paste0("sim_alternative_total_premium_amount_", nm)
+
+          baseline_sub_amt  <- paste0("sim_baseline_subsidy_amount_", nm)
+          alt_sub_amt       <- paste0("sim_alternative_subsidy_amount_", nm)
+
+          baseline_indem    <- paste0("sim_baseline_indemnity_amount_", nm)
+          alt_indem         <- paste0("sim_alternative_indemnity_amount_", nm)
+
+          baseline_rate     <- paste0("baseline_base_rate_", nm)
+          alt_rate          <- paste0("alternative_base_rate_", nm)
+          baseline_pf       <- paste0("baseline_payment_factor_", nm)
+          alt_pf            <- paste0("alternative_payment_factor_", nm)
+
+          sobtpu[, subsidy_share := fifelse(
+            is.na(total_premium_amount) | total_premium_amount == 0,
+            NA_real_,
+            subsidy_amount / total_premium_amount
+          )]
+
+          sobtpu[, (baseline_liab) := expected_value * coverage_level_percent]
+          sobtpu[, (alt_liab)      := expected_value * coverage_level_percent]
+
+          sobtpu[, (baseline_prem) := get(baseline_liab) * get(baseline_rate)]
+          sobtpu[, (alt_prem)      := get(alt_liab) * get(alt_rate)]
+
+          sobtpu[, (baseline_sub) := get(baseline_prem) * subsidy_share]
+          sobtpu[, (alt_sub)      := get(alt_prem) * subsidy_share]
+
+          sobtpu[, (baseline_paid) := get(baseline_prem) - get(baseline_sub)]
+          sobtpu[, (alt_paid)      := get(alt_prem) - get(alt_sub)]
+
+          sobtpu[, (baseline_acre) := fifelse(
+            is.na(get(baseline_paid)) | get(baseline_paid) <= 0,
+            NA_real_,
+            revealed_budget / get(baseline_paid)
+          )]
+
+          sobtpu[, (alt_acre) := fifelse(
+            is.na(get(alt_paid)) | get(alt_paid) <= 0,
+            NA_real_,
+            revealed_budget / get(alt_paid)
+          )]
+
+          sobtpu[, (baseline_liab_amt) := get(baseline_acre) * get(baseline_liab)]
+          sobtpu[, (alt_liab_amt)      := get(alt_acre) * get(alt_liab)]
+
+          sobtpu[, (baseline_totprem) := get(baseline_acre) * get(baseline_prem)]
+          sobtpu[, (alt_totprem)      := get(alt_acre) * get(alt_prem)]
+
+          sobtpu[, (baseline_sub_amt) := get(baseline_acre) * get(baseline_sub)]
+          sobtpu[, (alt_sub_amt)      := get(alt_acre) * get(alt_sub)]
+
+          sobtpu[, (baseline_indem) := get(baseline_liab_amt) * get(baseline_pf)]
+          sobtpu[, (alt_indem)      := get(alt_liab_amt) * get(alt_pf)]
         }
 
+        varlist_sobtpu <- c(names(sobtpu)[grepl("sim_",names(sobtpu))])
+        varlist_sobtpu <- varlist_sobtpu[!grepl("_per_acre_",varlist_sobtpu)]
+
         sobtpu <- sobtpu[
-          , lapply(.SD, function(x) sum(x, na.rm = TRUE)),
-          by = c("commodity_year","state_code","county_code","county_fips","interval_code","coverage_level","index_history_range"),
-          .SDcols = c(names(sobtpu)[grepl("sim_",names(sobtpu))])]
+          , lapply(.SD, function(x) mean(x, na.rm = TRUE)),
+          by = c("commodity_year","state_code","county_code","county_fips","interval_code","type_code","coverage_level_percent","index_history_range"),
+          .SDcols = varlist_sobtpu]
 
         sobtpu <- sobtpu |> tidyr::gather(type, value, c(names(sobtpu)[grepl("sim_",names(sobtpu))]))
         sobtpu <- tidyr::separate(sobtpu,"type", into = c("type","adjustment"), sep="_adj")
