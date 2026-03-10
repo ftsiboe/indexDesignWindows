@@ -9,6 +9,9 @@ if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE
 
 prf_sobtpu <- readRDS("data/prf_sobtpu.rds")
 prf_sobtpu[,coverage_level:=round(coverage_level_percent*100)]
+prf_sobtpu[, revealed_budget := total_premium_amount - subsidy_amount]
+prf_sobtpu[, expected_value := (liability_amount/coverage_level_percent)/insured_acres]
+
 prf_grid_weights     <- readRDS("data/prf_grid_weights.rds")
 rma_index_discretion_factor <- readRDS("data-raw/releases/baseline/rma_index_discretion_factor.rds")
 

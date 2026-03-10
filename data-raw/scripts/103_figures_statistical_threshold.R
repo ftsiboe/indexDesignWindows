@@ -12,7 +12,7 @@ statistics_list <- c(
   "q10"  = " e) 10th percentile ",
   "q90"  = " f) 90th percentile "
 )
-output_directory <- "data-raw/releases/statistical_threshold"
+output_directory <- "data-raw/releases/alternative"
 if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
 redesigns_directory  <- study_environment$wd$redesigns
 prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
@@ -20,15 +20,15 @@ xlist <- c("pvalue_mean","pvalue_var","pvalue_kruskal_wallis","pvalue_ks",
            "pvalue_pearson_cor","pvalue_kendall_cor")
 Keep.List<-c("Keep.List",ls())
 #-------------------------------------------------------------------------------
-# Plot - Balance Statistics                                                  ####
+# Plot - statistical analysis                                                ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
 
 data <- data.table::rbindlist(
   lapply(
-    list.files(output_directory,full.names = TRUE),
+    list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis"),
     function(i) {
       tryCatch({
-        # i <- list.files(output_directory,full.names = TRUE)[1]
+        # i <- list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis")[1]
         data <- as.data.frame(readRDS(i))
 
         data <- data[c(xlist,"index_history_range","state_code", "county_code","county_fips","coverage_level","y_level")]
@@ -96,12 +96,174 @@ data <- data[!data$value_cat %in% NA,]
 county_precipitation_trend <- readRDS("data-raw/releases/outputs/county_precipitation_trend.rds")
 
 
+data <- as.data.table(data)[
+  disaggregate %in% c("Index","Base rate\nfor 90% coverage level",
+                      "Payment factor\nfor 90% coverage level") &
+    variable %in% c("pvalue_mean","pvalue_var","pvalue_kruskal_wallis","pvalue_ks"),
+  .(
+    n = .N
+  ),
+  by = .(index_history_range, disaggregate, variable_name, value_cat)
+][
+  , prop := n / sum(n),
+  by = .(index_history_range, disaggregate, variable_name)
+]
+
+data$history_range <- as.numeric(gsub("[^0-9]","",data$index_history_range))
+
+fig <- ggplot(
+  data,
+  aes(
+    x     = history_range,
+    y     = prop,
+    fill  = value_cat,
+    group = value_cat
+  )
+) +
+  geom_area(
+    position = "fill",
+    alpha = 0.95
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(
+    title = "Proportion of counties with specified p-value range",
+    x = "",
+    y = "Proportion"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "#00583D",
+      "#A0BD78",
+      "#BED73B",
+      "#FFC425",
+      "#BE5E27"
+    ),
+    na.value = "white"
+  ) +
+  facet_grid(variable_name ~ disaggregate) +
+  ers_theme() +
+  theme(
+    plot.caption      = element_blank(),
+    axis.title.y      = element_blank(),
+    axis.title.x      = element_blank(),
+    axis.text.y       = element_text(size = 8),
+    axis.text.x       = element_text(size = 8, color = "black"),
+    legend.position   = "top",
+    legend.key.size   = unit(0.5, "cm"),
+    legend.background = element_blank(),
+    legend.title      = element_blank(),
+    legend.text       = element_text(size = 10),
+    strip.text        = element_text(size = 10),
+    strip.background  = element_blank()
+  )
+
+
+ggsave(file.path("data-raw/output/figure","statistical_threshold_balance_proportion.png"),
+       fig, dpi = 600,width = 8, height =8)
+
+#-------------------------------------------------------------------------------
+# Plot - actuarial  analysis                                                ####
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+
+data <- data.table::rbindlist(
+  lapply(
+    list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis"),
+    function(i) {
+      tryCatch({
+        # i <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")[1]
+        data <- readRDS(i)
+
+        data <- data[
+          , lapply(.SD, function(x) sum(x, na.rm = TRUE)),
+          by = c("index_history_range","adjustment"),
+          .SDcols = c("alternative_indemnity_amount","alternative_total_premium_amount",
+                      "baseline_indemnity_amount","baseline_total_premium_amount" )]
+
+        data[,alternative_lr  := alternative_indemnity_amount/alternative_total_premium_amount]
+        data[,baseline_lr     := baseline_indemnity_amount/baseline_total_premium_amount]
+        data[,actuarial_index := ((alternative_lr-1)^2)/((baseline_lr-1)^2)]
+
+        data
+      }, error = function(e){NULL})
+    }),fill = TRUE)
+
+data[,history_range := as.numeric(gsub("[^0-9]","",index_history_range))]
+data[,adjustmentCat := as.factor(adjustment)]
+
+
+ggplot(
+  data[history_range >= 30],
+  aes(
+    x     = history_range,
+    y     = actuarial_index,
+    fill  = adjustmentCat,
+    color  = adjustmentCat,
+    group = adjustmentCat
+  )
+) + geom_point()
 
 
 
 
 
 
+
+
++
+  geom_area(
+    position = "fill",
+    alpha = 0.95
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(
+    title = "Proportion of counties with specified p-value range",
+    x = "",
+    y = "Proportion"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "#00583D",
+      "#A0BD78",
+      "#BED73B",
+      "#FFC425",
+      "#BE5E27"
+    ),
+    na.value = "white"
+  ) +
+  facet_grid(variable_name ~ disaggregate) +
+  ers_theme() +
+  theme(
+    plot.caption      = element_blank(),
+    axis.title.y      = element_blank(),
+    axis.title.x      = element_blank(),
+    axis.text.y       = element_text(size = 8),
+    axis.text.x       = element_text(size = 8, color = "black"),
+    legend.position   = "top",
+    legend.key.size   = unit(0.5, "cm"),
+    legend.background = element_blank(),
+    legend.title      = element_blank(),
+    legend.text       = element_text(size = 10),
+    strip.text        = element_text(size = 10),
+    strip.background  = element_blank()
+  )
+
+
+
+
+data <- add_break_categories(
+  data = data,
+  variable = "value",
+  break_levels = c(-Inf,0.01,0.05,0.10,0.50,Inf),
+  break_labels = c("Less than 0.01","0.01 to 0.05","0.05 to 0.10","0.10 to 0.50","Greater than 0.50"))
+
+data <- data[!data$value_cat %in% NA,]
+
+
+county_precipitation_trend <- readRDS("data-raw/releases/outputs/county_precipitation_trend.rds")
 
 
 data <- as.data.table(data)[
