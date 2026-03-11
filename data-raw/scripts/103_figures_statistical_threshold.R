@@ -138,7 +138,7 @@ fig <- ggplot(
       "#A0BD78",
       "#BED73B",
       "#FFC425",
-      "#BE5E27"
+      "#B83E27"
     ),
     na.value = "white"
   ) +
@@ -187,8 +187,8 @@ data <- data.table::rbindlist(
 
         data[,alternative_lr  := alternative_indemnity_amount/alternative_total_premium_amount]
         data[,baseline_lr     := baseline_indemnity_amount/baseline_total_premium_amount]
-        data[,actuarial_index := ((alternative_lr-1)^2)/((baseline_lr-1)^2)]
-        data[,actuarial_index := (abs(alternative_lr-1) - abs(baseline_lr-1))*100]
+        #data[,actuarial_index := ((alternative_lr-1)^2)/((baseline_lr-1)^2)]
+        data[,actuarial_index := (abs(alternative_lr-0.88) - abs(baseline_lr-0.88))*100]
 
         data
       }, error = function(e){NULL})
