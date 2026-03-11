@@ -93,7 +93,7 @@ data <- add_break_categories(
 data <- data[!data$value_cat %in% NA,]
 
 
-county_precipitation_trend <- readRDS("data-raw/releases/outputs/county_precipitation_trend.rds")
+# county_precipitation_trend <- readRDS("data-raw/releases/outputs/county_precipitation_trend.rds")
 
 
 data <- as.data.table(data)[
@@ -172,8 +172,12 @@ data <- data.table::rbindlist(
     list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis"),
     function(i) {
       tryCatch({
-        # i <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")[1]
+        # i <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")[2]
         data <- readRDS(i)
+        data <- data[!baseline_total_premium_amount %in% c(0,NA,Inf,-Inf,NaN)]
+        data <- data[!alternative_total_premium_amount %in% c(0,NA,Inf,-Inf,NaN)]
+        data <- data[!baseline_indemnity_amount %in% c(NA,Inf,-Inf,NaN)]
+        data <- data[!alternative_indemnity_amount %in% c(NA,Inf,-Inf,NaN)]
 
         data <- data[
           , lapply(.SD, function(x) sum(x, na.rm = TRUE)),
@@ -184,6 +188,7 @@ data <- data.table::rbindlist(
         data[,alternative_lr  := alternative_indemnity_amount/alternative_total_premium_amount]
         data[,baseline_lr     := baseline_indemnity_amount/baseline_total_premium_amount]
         data[,actuarial_index := ((alternative_lr-1)^2)/((baseline_lr-1)^2)]
+        data[,actuarial_index := (abs(alternative_lr-1) - abs(baseline_lr-1))*100]
 
         data
       }, error = function(e){NULL})
@@ -194,7 +199,7 @@ data[,adjustmentCat := as.factor(adjustment)]
 
 
 ggplot(
-  data[history_range >= 30],
+  data,
   aes(
     x     = history_range,
     y     = actuarial_index,

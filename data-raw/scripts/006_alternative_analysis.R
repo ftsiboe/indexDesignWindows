@@ -24,13 +24,6 @@ rma_rate_discretion_factor[discretion_flag %in% "adjusted",discretion_flag := "r
 rma_rate_discretion_factor <- rma_rate_discretion_factor |> tidyr::spread(discretion_flag, rate_discretion_factor)
 rma_rate_discretion_factor <- as.data.table(rma_rate_discretion_factor)
 
-alternative_list <- list.files(redesigns_directory,pattern = "prf_rates_",full.names = T,recursive = T)
-alternative_list <- alternative_list[!grepl("200",alternative_list)]
-
-# alternative_list <- alternative_list[
-#   ! paste0("threshold_analysis_",basename(dirname(alternative_list)),".rds") %in%
-#     list.files(output_directory)]
-
 baseline_program <- readRDS(file.path(redesigns_directory,"200/prf_index_200.rds"))[
   commodity_year %in% study_environment$year_beg:study_environment$year_end,.(baseline_index = mean(index, na.rm=T)),
   by=c("grid_id","interval_code","commodity_year")]
@@ -59,16 +52,21 @@ baseline_program <- baseline_program[
      baseline_payment_factor_adj03 = mean(cpc_payment_factor_adj01, na.rm=T)),
   by=c("commodity_year","state_code", "county_code","county_fips","interval_code","coverage_level")]
 
+
+alternative_worklist <- list.files(redesigns_directory,pattern = "prf_rates_",full.names = T,recursive = T)
+alternative_worklist <- alternative_worklist[!grepl("200",alternative_worklist)]
+alternative_worklist <- unique(basename(dirname(alternative_worklist)))
+
 # If running under a SLURM array job, filter the design_specs by the current task ID
 if(!is.na(as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID")))) {
-  alternative_list <- alternative_list[as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))]
+  alternative_worklist <- alternative_worklist[as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))]
 }
 
 lapply(
-  unique(basename(dirname(alternative_list))),
+  alternative_worklist,
   function(history_range) {
     tryCatch({
-      # history_range <- unique(basename(dirname(alternative_list)))[1]
+      # history_range <- "017"
 
       statistical_out_file <- file.path(output_directory,paste0("statistical_analysis_",history_range,".rds"))
       insurance_out_file   <- file.path(output_directory,paste0("insurance_analysis_",history_range,".rds"))
@@ -78,10 +76,10 @@ lapply(
         # aggregate data
         data <- data.table::rbindlist(
           lapply(
-            alternative_list[grepl(history_range,alternative_list)],
+            list.files(file.path(redesigns_directory,history_range),pattern = "prf_rates_",full.names = T,recursive = T),
             function(i) {
               tryCatch({
-                # i <- alternative_list[grepl(history_range,alternative_list)][1]
+                # i <- list.files(file.path(redesigns_directory,history_range),pattern = "prf_rates_",full.names = T,recursive = T)[1]
                 cpc_rates <- readRDS(i)[
                   ,.(alternative_base_rate = mean(base_rate, na.rm=T)),
                   by=c("grid_id","interval_code","commodity_year","coverage_level","index_history_range","discretion_flag")]
