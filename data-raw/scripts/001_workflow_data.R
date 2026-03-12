@@ -5,7 +5,7 @@ library(data.table);library(rfcipPRF)
 # Initialize environment                          ####
 devtools::document()
 study_environment <- setup_environment(
-  year_beg = 2016, year_end = 2024, seed = 1980632,
+  year_beg = 2016, year_end = 2025, seed = 1980632,
   project_name="indexDesignWindows",
   local_directories = list(
     file.path("data-raw", "output","summary"),
@@ -111,18 +111,12 @@ piggyback::pb_download(
 #----------------------------------------------------
 # Official PRF SOB                                ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
-data <- data.table::rbindlist(
-  lapply(
-    study_environment$year_beg:study_environment$year_end,
-    function(year) {
-      tryCatch({
-        rfcipPRF::get_prf_fcip_dataset(
-          dataset = "sobtpu",year = year,
-          force = TRUE)
-      }, error = function(e){NULL})
-    }),fill = TRUE)
-
-saveRDS(data,"data/prf_sobtpu.rds")
+piggyback::pb_download(
+  file = "prf_sobtpu.rds",
+  dest = "data",
+  repo = "ftsiboe/rfcipPRF",
+  tag  = "prf_official",
+  overwrite = TRUE)
 
 #----------------------------------------------------
 

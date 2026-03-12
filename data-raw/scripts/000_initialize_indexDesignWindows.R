@@ -15,13 +15,13 @@ if(toupper(as.character(Sys.info()[["sysname"]])) %in% "WINDOWS"){
   list_function <- c(
     file.path(codeLibrary,"plot/ers_theme.R"),
     file.path(codeLibrary,"plot/plot_helpers.R"),
+    file.path(codeLibrary,"nass/get_price_indices.R"),
     file.path(codeLibrary,"github_tools/get_study_releases.R")
   )
   file.copy(from= list_function, to = "R/", overwrite = TRUE, recursive = FALSE, copy.mode = TRUE)
 }
 
 list_function <- c(
-  "https://raw.githubusercontent.com/ftsiboe/USFarmSafetyNetLab/heads/main/R/get_price_indices.R",
   "https://raw.githubusercontent.com/ftsiboe/USFarmSafetyNetLab/heads/main/R/setup_environment.R"
 )
 
