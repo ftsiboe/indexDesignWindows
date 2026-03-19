@@ -55,7 +55,7 @@ future_lapply(
 plan(sequential);gc()
 
 function(){
-  # Estimate RMA Rate Discretion Factor                                        ####
+  # Estimate RMA Index Discretion Factor                                        ####
   rm(list = ls(all = TRUE));library(data.table);library(rfcipPRF);gc()
   devtools::document()
   study_environment <- readRDS("data/study_environment.rds")
@@ -65,16 +65,7 @@ function(){
 
   prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
 
-  temporary_dir <- tempdir()
-
-  piggyback::pb_download(
-    file = "prf_index_200.rds",
-    dest = temporary_dir,
-    repo = "ftsiboe/indexDesignWindows",
-    tag  = "redesigns",
-    overwrite = TRUE)
-
-  data <- readRDS(file.path(temporary_dir,"prf_index_200.rds"))
+  data <- readRDS(file.path(study_environment$wd$redesigns, "200",paste0("prf_index_200.rds")))
 
   data <- prf_grid_weights[data,on = intersect(names(data), names(prf_grid_weights)),nomatch = 0]
   data <- data[

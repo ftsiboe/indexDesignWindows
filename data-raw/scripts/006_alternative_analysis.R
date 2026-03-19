@@ -54,7 +54,7 @@ baseline_program <- baseline_program[
 
 
 alternative_worklist <- list.files(redesigns_directory,pattern = "prf_rates_",full.names = T,recursive = T)
-alternative_worklist <- alternative_worklist[!grepl("200",alternative_worklist)]
+#alternative_worklist <- alternative_worklist[!grepl("200",alternative_worklist)]
 alternative_worklist <- unique(basename(dirname(alternative_worklist)))
 
 # If running under a SLURM array job, filter the design_specs by the current task ID
@@ -285,7 +285,7 @@ lapply(
   })
 
 
-# Upload Baseline assets                                                     ####
+# Upload alternative assets                                                     ####
 function(){
   if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
 

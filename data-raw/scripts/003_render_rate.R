@@ -104,10 +104,76 @@ lapply(
   })
 
 
+function(){
+  # Estimate RMA Index Discretion Factor                                        ####
+  rm(list = ls(all = TRUE));library(data.table);library(rfcipPRF);gc()
+  devtools::document()
+  study_environment <- readRDS("data/study_environment.rds")
+
+  output_directory <- "data-raw/releases/baseline"
+  if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
+
+  prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
+
+  data <- data.table::rbindlist(
+    lapply(
+      list.files(file.path(study_environment$wd$redesigns,"200"),pattern = "prf_rates_",full.names = T),
+      function(i) {
+        tryCatch({
+          # i <- list.files(file.path(study_environment$wd$redesigns,"200"),pattern = "prf_rates_",full.names = T)[1];
+          df <- readRDS(i)
+          df <- df[
+            ,.(cpc_base_rate = mean(base_rate, na.rm=T)),
+            by=c("grid_id","interval_code","commodity_year","coverage_level","discretion_flag")]
+          df
+        }, error = function(e){NULL})
+      }),fill = TRUE)
+
+  data[,coverage_level:=round(coverage_level*100)]
+
+  rma_rates <- readRDS("data/grid_level_official_prf_adm.rds")[
+    ,.(rma_base_rate = mean(rma_base_rate, na.rm=T),
+       rma_payment_factor = mean(rma_payment_factor, na.rm=T)),
+    by=c("grid_id","interval_code","commodity_year","coverage_level_percent","coverage_level")]
+
+  data <- data[rma_rates,on = intersect(names(data), names(rma_rates)),nomatch = 0]
+
+  data <- prf_grid_weights[data,on = intersect(names(data), names(prf_grid_weights)),nomatch = 0]
+
+  data <- data[
+    ,.(rma_base_rate = weighted.mean(x=rma_base_rate,w=potential_range_pasture, na.rm=T),
+       cpc_base_rate = weighted.mean(x=cpc_base_rate,w=potential_range_pasture, na.rm=T)),
+    by=c("commodity_year","state_code", "county_code","county_fips","interval_code","coverage_level_percent","discretion_flag")]
+
+  # Weighted least squares
+  data <- data[
+    ,.(rate_discretion_factor_all = coef(lm(rma_base_rate~cpc_base_rate - 1))),
+    by=c("state_code", "county_code","county_fips","discretion_flag")][
+      data[
+        ,.(rate_discretion_factor = coef(lm(rma_base_rate~cpc_base_rate - 1))),
+        by=c("state_code", "county_code","county_fips","interval_code","discretion_flag")],
+      on=c("state_code", "county_code","county_fips","discretion_flag"),nomatch = 0]
+
+  data <- data |> tidyr::spread(interval_code, rate_discretion_factor)
+
+  data[,"600"] <- data$rate_discretion_factor_all
+  data <- data |> tidyr::gather(interval_code, rate_discretion_factor, names(data)[!names(data) %in% c("state_code", "county_code","county_fips","discretion_flag","rate_discretion_factor_all")])
+  data$rate_discretion_factor <- ifelse(data$rate_discretion_factor %in% NA,data$rate_discretion_factor_all,data$rate_discretion_factor)
+  data$interval_code <- as.numeric(data$interval_code)
+
+  intervalKey <- readRDS("data/official_interval_names.rds")
+
+  data$interval_name <- factor(
+    data$interval_code,
+    levels = c(600,intervalKey$interval_code),
+    labels = c("All intervals",intervalKey$interval_name))
+
+  saveRDS(as.data.table(data),file.path(output_directory,"rma_rate_discretion_factor.rds"))
+}
+
 # Upload the assets
 function(){
   if(requireNamespace("gh", quietly = TRUE)) try(gh::gh_whoami(), silent = TRUE)
-
 
   piggyback::pb_release_create(
     repo = "ftsiboe/indexDesignWindows",
@@ -142,16 +208,3 @@ function(){
   )
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

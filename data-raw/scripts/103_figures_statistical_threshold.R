@@ -22,10 +22,11 @@ Keep.List<-c("Keep.List",ls())
 #-------------------------------------------------------------------------------
 # Plot - statistical analysis                                                ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+data <- list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis")
 
 data <- data.table::rbindlist(
   lapply(
-    list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis"),
+    data[!grepl("200",data)],
     function(i) {
       tryCatch({
         # i <- list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis")[1]
@@ -166,10 +167,11 @@ ggsave(file.path("data-raw/output/figure","statistical_threshold_balance_proport
 #-------------------------------------------------------------------------------
 # Plot - actuarial  analysis                                                ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+data <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")
 
 data <- data.table::rbindlist(
   lapply(
-    list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis"),
+    data[!grepl("200",data)],
     function(i) {
       tryCatch({
         # i <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")[2]
@@ -188,7 +190,7 @@ data <- data.table::rbindlist(
         data[,alternative_lr  := alternative_indemnity_amount/alternative_total_premium_amount]
         data[,baseline_lr     := baseline_indemnity_amount/baseline_total_premium_amount]
         #data[,actuarial_index := ((alternative_lr-1)^2)/((baseline_lr-1)^2)]
-        data[,actuarial_index := (abs(alternative_lr-0.88) - abs(baseline_lr-0.88))*100]
+        data[,actuarial_index := (abs(alternative_lr-1) - abs(baseline_lr-1))*100]
 
         data
       }, error = function(e){NULL})
