@@ -165,7 +165,7 @@ ggsave(file.path("data-raw/output/figure","statistical_threshold_balance_proport
        fig, dpi = 600,width = 8, height =8)
 
 #-------------------------------------------------------------------------------
-# Plot - actuarial  analysis                                                ####
+# Plot - actuarial  analysis                                                 ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
 data <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")
 
