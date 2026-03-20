@@ -24,6 +24,32 @@ rma_rate_discretion_factor[discretion_flag %in% "adjusted",discretion_flag := "r
 rma_rate_discretion_factor <- rma_rate_discretion_factor |> tidyr::spread(discretion_flag, rate_discretion_factor)
 rma_rate_discretion_factor <- as.data.table(rma_rate_discretion_factor)
 
+prf_adm_cbv <- readRDS("data/grid_level_official_prf_adm.rds")
+prf_adm_cbv <- prf_grid_weights[prf_adm_cbv,on = intersect(names(prf_adm_cbv), names(prf_grid_weights)),nomatch = 0]
+prf_adm_cbv <- prf_adm_cbv[
+  ,.(county_base_value =  weighted.mean(x=rma_county_base_value, w=potential_range_pasture, na.rm = TRUE)),
+  by=c("commodity_year","state_code","county_code")]
+
+farm_prod <- readRDS("~/GitHub/rfcipPRF/data-raw/releases/prf_extracts/productivity_prf_grids.rds")
+farm_prod <- prf_grid_weights[farm_prod,on = intersect(names(farm_prod), names(prf_grid_weights)),nomatch = 0]
+farm_prod <- farm_prod[
+  ,.(yield =  weighted.mean(x=rangeland_prod_mean, w=potential_range_pasture, na.rm = TRUE)),
+  by=c("commodity_year","state_code","county_code")]
+
+farm_prod <- farm_prod[prf_sobtpu[type_code %in% 7],on = intersect(names(prf_sobtpu), names(farm_prod)),nomatch = 0]
+farm_prod[, sum_area := sum(insured_acres, na.rm=TRUE), by= c("commodity_year","state_code","county_code")]
+farm_prod[, weight := insured_acres/sum_area]
+farm_prod[, expected_value_county := weighted.mean(x=expected_value, w=insured_acres, na.rm=TRUE), by= c("commodity_year","state_code","county_code")]
+farm_prod[, productivity_factor := expected_value/expected_value_county]
+farm_prod <- farm_prod[prf_adm_cbv,on = intersect(names(prf_adm_cbv), names(farm_prod)),nomatch = 0]
+farm_prod[, subsidy_share := fifelse(
+  is.na(total_premium_amount) | total_premium_amount == 0,
+  NA_real_,
+  subsidy_amount / total_premium_amount
+)]
+farm_prod[, c("insured_acres","liability_amount","total_premium_amount","subsidy_amount","indemnity_amount" ) := NULL]
+farm_prod[, c("revealed_budget","expected_value","expected_value_county","sum_area","type_code","interval_name") := NULL]
+
 baseline_program <- readRDS(file.path(redesigns_directory,"200/prf_index_200.rds"))[
   commodity_year %in% study_environment$year_beg:study_environment$year_end,.(baseline_index = mean(index, na.rm=T)),
   by=c("grid_id","interval_code","commodity_year")]
@@ -70,6 +96,7 @@ lapply(
 
       statistical_out_file <- file.path(output_directory,paste0("statistical_analysis_",history_range,".rds"))
       insurance_out_file   <- file.path(output_directory,paste0("insurance_analysis_",history_range,".rds"))
+      revenue_out_file     <- file.path(output_directory,paste0("revenue_analysis_",history_range,".rds"))
 
       if(!file.exists(statistical_out_file)){
 
@@ -139,6 +166,9 @@ lapply(
         # actuarial analysis
         sobtpu <- prf_sobtpu[data,on = intersect(names(data), names(prf_sobtpu)),nomatch = 0]
 
+        # Farm analysis
+        farm <- farm_prod[data,on = intersect(names(data), names(farm_prod)),nomatch = 0]
+
         for (nm in c("adj00", "adj01", "adj02", "adj03")) {
 
           baseline_liab <- paste0("sim_baseline_liability_per_acre_", nm)
@@ -172,6 +202,9 @@ lapply(
           alt_rate          <- paste0("alternative_base_rate_", nm)
           baseline_pf       <- paste0("baseline_payment_factor_", nm)
           alt_pf            <- paste0("alternative_payment_factor_", nm)
+
+          baseline_rev    <- paste0("baseline_revenue_", nm)
+          alt_rev         <- paste0("alternative_revenue_", nm)
 
           sobtpu[, subsidy_share := fifelse(
             is.na(total_premium_amount) | total_premium_amount == 0,
@@ -212,10 +245,60 @@ lapply(
           sobtpu[, (baseline_sub_amt) := get(baseline_acre) * get(baseline_sub)]
           sobtpu[, (alt_sub_amt)      := get(alt_acre) * get(alt_sub)]
 
-          sobtpu[, (baseline_indem) := get(baseline_liab_amt) * get(baseline_pf)]
-          sobtpu[, (alt_indem)      := get(alt_liab_amt) * get(alt_pf)]
+          sobtpu[, (baseline_indem)   := get(baseline_liab_amt) * get(baseline_pf)]
+          sobtpu[, (alt_indem)        := get(alt_liab_amt) * get(alt_pf)]
+
+          cede_area   <- paste0("sim_ceded_acres_", nm)
+          retain_area <- paste0("sim_retained_acres_", nm)
+
+          cede_liab   <- paste0("sim_ceded_liability_", nm)
+          retain_liab <- paste0("sim_retained_liability_", nm)
+
+          cede_prem   <- paste0("sim_ceded_premium_", nm)
+          retain_prem <- paste0("sim_retained_premium_", nm)
+
+          cede_sub   <- paste0("sim_ceded_subsidy_", nm)
+          retain_sub <- paste0("sim_retained_subsidy_", nm)
+
+          cede_indem   <- paste0("sim_ceded_indemnity_", nm)
+          retain_indem <- paste0("sim_retained_indemnity_", nm)
+
+          sobtpu[, (cede_area)   := ifelse(get(alt_rate) >  get(baseline_rate),get(baseline_acre),0)]
+          sobtpu[, (retain_area) := ifelse(get(alt_rate) <= get(baseline_rate),get(baseline_acre),0)]
+
+          sobtpu[, (cede_liab)   := ifelse(get(alt_rate) >  get(baseline_rate),get(baseline_liab_amt),0)]
+          sobtpu[, (retain_liab) := ifelse(get(alt_rate) <= get(baseline_rate),get(baseline_liab_amt),0)]
+
+          sobtpu[, (cede_prem)   := ifelse(get(alt_rate) >  get(baseline_rate),get(baseline_totprem),0)]
+          sobtpu[, (retain_prem) := ifelse(get(alt_rate) <= get(baseline_rate),get(baseline_totprem),0)]
+
+          sobtpu[, (cede_sub)   := ifelse(get(alt_rate) >  get(baseline_rate),get(baseline_sub_amt),0)]
+          sobtpu[, (retain_sub) := ifelse(get(alt_rate) <= get(baseline_rate),get(baseline_sub_amt),0)]
+
+          sobtpu[, (cede_indem)   := ifelse(get(alt_rate) >  get(baseline_rate),get(baseline_indem),0)]
+          sobtpu[, (retain_indem) := ifelse(get(alt_rate) <= get(baseline_rate),get(baseline_indem),0)]
+
+
+          farm[, (baseline_liab_amt) := coverage_level_percent*productivity_factor*county_base_value]
+          farm[, (alt_liab_amt)      := coverage_level_percent*productivity_factor*county_base_value]
+
+          farm[, (baseline_prem) := get(baseline_liab_amt) * get(baseline_rate)]
+          farm[, (alt_prem)      := get(alt_liab_amt) * get(alt_rate)]
+
+          farm[, (baseline_sub) := get(baseline_prem) * subsidy_share]
+          farm[, (alt_sub)      := get(alt_prem) * subsidy_share]
+
+          farm[, (baseline_paid) := get(baseline_prem) - get(baseline_sub)]
+          farm[, (alt_paid)      := get(alt_prem) - get(alt_sub)]
+
+          farm[, (baseline_indem) := get(baseline_liab_amt) * get(baseline_pf)]
+          farm[, (alt_indem)      := get(alt_liab_amt) * get(alt_pf)]
+
+          farm[, (baseline_rev) := yield + get(baseline_indem) - get(baseline_paid)]
+          farm[, (alt_rev)      := yield + get(alt_indem) - get(alt_indem)]
         }
 
+        # Actuarial/Economic analysis
         varlist_sobtpu <- c(names(sobtpu)[grepl("sim_",names(sobtpu))])
         varlist_sobtpu <- varlist_sobtpu[!grepl("_per_acre_",varlist_sobtpu)]
 
@@ -233,12 +316,32 @@ lapply(
 
         rm(sobtpu);gc()
 
-        # Economic analysis
-        # sobtpu$allocation <- ifelse(
-        #   sobtpu$alternative_total_premium_amount >
-        #     sobtpu$baseline_total_premium_amount,
-        #   "Cede",
-        #   "Retain")
+        # Farm analysis
+        varlist_farm <- c("yield",names(farm)[grepl("_revenue_",names(farm))])
+
+        farm_pool <- farm[
+          , lapply(.SD, function(x) weighted.mean(x, w=weight, na.rm = TRUE)),
+          by = c("commodity_year","state_code","county_code","county_fips","index_history_range"),
+          .SDcols = varlist_farm]
+
+        farm_cov <- farm[
+          , lapply(.SD, function(x) weighted.mean(x, w=weight, na.rm = TRUE)),
+          by = c("commodity_year","state_code","county_code","county_fips","index_history_range","coverage_level_percent"),
+          .SDcols = varlist_farm]
+
+        farm_interval <- farm[
+          , lapply(.SD, function(x) weighted.mean(x, w=weight, na.rm = TRUE)),
+          by = c("commodity_year","state_code","county_code","county_fips","index_history_range","interval_code"),
+          .SDcols = varlist_farm]
+
+        farm_final <- data.table::rbindlist(list(farm_pool,farm_cov,farm_interval),fill = TRUE)
+        farm_final <- farm_final |> tidyr::gather(type, value, c(names(farm_final)[grepl("_revenue_",names(farm_final))]))
+        farm_final <- tidyr::separate(farm_final,"type", into = c("type","adjustment"), sep="_adj")
+        farm_final <- farm_final |> tidyr::spread(type, value)
+        farm_final$adjustment <- as.numeric( farm_final$adjustment)
+        saveRDS(as.data.table(farm_final),revenue_out_file)
+        rm(farm_pool,farm_cov,farm_interval,farm_final);gc()
+
 
         # Statistical analysis
         balance_final <- list()

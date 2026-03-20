@@ -33,7 +33,7 @@ rma_adm <- data.table::rbindlist(
           tag  = "prf_official",
           overwrite = TRUE)
         df <- readRDS(file.path(temporary_dir,file_name))[
-          ,.(rma_county_base_value = mean(county_base_value, na.rm=T),
+          type_code %in% c(7,64),.(rma_county_base_value = mean(county_base_value, na.rm=T),
              rma_base_rate = mean(base_rate, na.rm=T),
              rma_payment_factor = mean(payment_factor, na.rm=T)),
           by=c("grid_id","interval_code","commodity_year","coverage_level_percent")]
