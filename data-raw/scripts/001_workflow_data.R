@@ -4,6 +4,7 @@ library(data.table);library(rfcipPRF)
 #----------------------------------------------------
 # Initialize environment                          ####
 devtools::document()
+temporary_dir <- tempdir()
 study_environment <- setup_environment(
   year_beg = 2016, year_end = 2025, seed = 1980632,
   project_name="indexDesignWindows",
@@ -119,6 +120,17 @@ piggyback::pb_download(
   overwrite = TRUE)
 
 #----------------------------------------------------
-
+# Hay Production                                  ####
+rm(list= ls()[!(ls() %in% c(Keep.List))])
+piggyback::pb_download(
+  file = "nassSurveyHayProduction.rds",
+  dest = temporary_dir,
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "nass_extracts",
+  overwrite = TRUE)
+data <- readRDS(file.path(temporary_dir,"nassSurveyHayProduction.rds"))
+data[, data_source :=NULL]
+saveRDS(data,file="data/nass_hay_production.rds")
+#----------------------------------------------------
 
 
