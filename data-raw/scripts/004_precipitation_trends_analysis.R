@@ -147,7 +147,7 @@ vcov_cgm_2way_plm <- function(object) {
 # -----------------------
 # Helper: estimate trend for one focal grid using focal+queen neighbors
 # -----------------------
-estimate_one_grid <- function(dt, focal_grid_id, nb_gids) {
+estimate_one_grid <- function(dt, focal_grid_id, nb_gids, model = "within") {
   gset <- nb_gids[[as.character(focal_grid_id)]]
   if (is.null(gset) || length(gset) == 0L) return(NULL)
 
@@ -162,7 +162,7 @@ estimate_one_grid <- function(dt, focal_grid_id, nb_gids) {
     precipitation ~ trend,
     data  = d,
     index = c("cs_id", "commodity_year"),
-    model = "within"
+    model = model
   )
 
   V  <- vcov_cgm_2way_plm(obj)

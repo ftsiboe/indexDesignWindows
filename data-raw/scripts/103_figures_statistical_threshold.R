@@ -485,7 +485,7 @@ ggplot(
 
 
 #-------------------------------------------------------------------------------
-# Plot - Revenue  analysis                                                  ####
+# Plot - Revenue  analysis                                                   ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
 data <- list.files(output_directory,full.names = TRUE, pattern = "revenue_analysis")
 
@@ -518,8 +518,8 @@ data <- data.table::rbindlist(
         data <- data[ob_altn >= 4]
 
         data[,cv_none := sd_none/mn_none]
-        data[,cv_base := sd_none/mn_base]
-        data[,cv_altn := sd_none/mn_altn]
+        data[,cv_base := sd_base/mn_base]
+        data[,cv_altn := sd_altn/mn_altn]
 
         data <- data[, Relmean := mn_altn/mn_base]
         data <- data[, Relcv   := cv_altn/cv_base]
@@ -539,14 +539,13 @@ data <- data[interval_code %in% NA]
 data <- data[coverage_level_percent %in% NA]
 data <- data[adjustment %in% 3]
 
-
 ggplot(
   data,
   aes(
     x     = history_range,
     y     = Relmean,
     fill  = adjustmentCat,
-    color  = adjustmentCat,
+    color = adjustmentCat,
     group = adjustmentCat
   )
 ) + geom_point()
