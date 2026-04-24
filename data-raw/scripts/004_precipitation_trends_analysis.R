@@ -129,25 +129,28 @@ names(nb_gids) <- as.character(gid)
 #   V = V_group + V_time - V_intersection
 # -----------------------
 vcov_cgm_2way_plm <- function(object) {
-  Vi <- plm::vcovHC(object, method = "arellano", type = "HC1", cluster = "group")
-  Vt <- plm::vcovHC(object, method = "arellano", type = "HC1", cluster = "time")
+  # Vi <- plm::vcovHC(object, method = "arellano", type = "HC1", cluster = "group")
+  # Vt <- plm::vcovHC(object, method = "arellano", type = "HC1", cluster = "time")
+  #
+  # idx  <- as.data.frame(plm::index(object))
+  # pool <- idx[[1]]
+  # year <- idx[[2]]
+  # both <- interaction(pool, year, drop = TRUE)
+  #
+  # object_both <- object
+  # attr(object_both, "index")[[1]] <- both
+  # Vw <- plm::vcovHC(object_both, method = "arellano", type = "HC1", cluster = "group")
+  #
+  # Vi + Vt - Vw
 
-  idx  <- as.data.frame(plm::index(object))
-  pool <- idx[[1]]
-  year <- idx[[2]]
-  both <- interaction(pool, year, drop = TRUE)
-
-  object_both <- object
-  attr(object_both, "index")[[1]] <- both
-  Vw <- plm::vcovHC(object_both, method = "arellano", type = "HC1", cluster = "group")
-
-  Vi + Vt - Vw
+  plm::vcovDC(object)
 }
+
 
 # -----------------------
 # Helper: estimate trend for one focal grid using focal+queen neighbors
 # -----------------------
-estimate_one_grid <- function(dt, focal_grid_id, nb_gids, model = "within") {
+estimate_one_grid <- function(dt, formula , focal_grid_id, nb_gids, model = "within") {
   gset <- nb_gids[[as.character(focal_grid_id)]]
   if (is.null(gset) || length(gset) == 0L) return(NULL)
 
@@ -159,7 +162,7 @@ estimate_one_grid <- function(dt, focal_grid_id, nb_gids, model = "within") {
   if (length(unique(d$cs_id)) < 2L) return(NULL)
 
   obj <- plm::plm(
-    precipitation ~ trend,
+    formula = formula,
     data  = d,
     index = c("cs_id", "commodity_year"),
     model = model
@@ -194,6 +197,7 @@ invisible(
   lapply(history_windows, function(i) {
     #tryCatch({
 
+    # i <- history_windows[1]
       output_file_county <- file.path(
         output_directory,
         paste0("county_precipitation_trends_", stringr::str_pad(i, width = 3, pad = "0"), ".rds")
@@ -208,26 +212,49 @@ invisible(
       if (nrow(dtw) == 0L) stop("No data for window length i = ", i)
 
       # Grid-level estimation (each grid_id uses pooled sample: focal + queen neighbors)
-      res <- dtw[
-        ,
-        {
-          out_i <- tryCatch(
-            estimate_one_grid(dtw, focal_grid_id = grid_id[1], nb_gids = nb_gids),
-            error = function(e) NULL
-          )
-          if (is.null(out_i)) {
-            list(
-              estimate = NA_real_,
-              standard_error = NA_real_,
-              t_value = NA_real_,
-              p_value = NA_real_
-            )
-          } else {
-            out_i
-          }
-        },
-        by = .(grid_id)
-      ]
+
+      res_linear <- data.table::rbindlist(
+        lapply(
+          c("within", "random", "pooling"),
+          function(estimator){
+            tryCatch({
+              res <- dtw[
+                ,{out_i <- tryCatch(
+                  estimate_one_grid(dtw, formula = precipitation ~ trend, focal_grid_id = grid_id[1], nb_gids = nb_gids, model = estimator),
+                  error = function(e) NULL
+                )
+                if(is.null(out_i)) {
+                  list(estimate = NA_real_,standard_error = NA_real_,t_value = NA_real_,p_value = NA_real_)
+                } else {out_i}},by = .(grid_id)]
+              res[, model_estimator := estimator]
+              res
+            }, error = function(e){NULL})
+          }),fill = TRUE)
+
+      res_log <- data.table::rbindlist(
+        lapply(
+          c("within", "random", "pooling"),
+          function(estimator){
+            tryCatch({
+              res <- dtw[
+                ,{out_i <- tryCatch(
+                  estimate_one_grid(dtw, formula = log(precipitation) ~ trend, focal_grid_id = grid_id[1], nb_gids = nb_gids, model = estimator),
+                  error = function(e) NULL
+                )
+                if(is.null(out_i)) {
+                  list(estimate = NA_real_,standard_error = NA_real_,t_value = NA_real_,p_value = NA_real_)
+                } else {out_i}},by = .(grid_id)]
+              res[, model_estimator := estimator]
+              res
+            }, error = function(e){NULL})
+          }),fill = TRUE)
+
+      res_linear[,precipitation := "linear"]
+      res_log[,precipitation := "log"]
+
+      res <- rbind(res_linear,res_log)
+      rm(res_linear,res_log);gc()
+
       res[, history_range := i]
 
       # Merge PRF grid weights (must include county id + weight)
@@ -237,9 +264,29 @@ invisible(
       # Grid classification (optional)
       res[
         ,
-        trend_class := fifelse(
+        trend_class01 := fifelse(
+          is.na(p_value), NA_character_,
+          fifelse(p_value > 0.01, "None",
+                  fifelse(estimate > 0, "Positive",
+                          fifelse(estimate < 0, "Negative", "None")))
+        )
+      ]
+
+      res[
+        ,
+        trend_class05 := fifelse(
           is.na(p_value), NA_character_,
           fifelse(p_value > 0.05, "None",
+                  fifelse(estimate > 0, "Positive",
+                          fifelse(estimate < 0, "Negative", "None")))
+        )
+      ]
+
+      res[
+        ,
+        trend_class10 := fifelse(
+          is.na(p_value), NA_character_,
+          fifelse(p_value > 0.10, "None",
                   fifelse(estimate > 0, "Positive",
                           fifelse(estimate < 0, "Negative", "None")))
         )
@@ -264,21 +311,37 @@ invisible(
           estimate_w = weighted.mean(estimate, w = get(weight_col), na.rm = TRUE),
           p_value_w  = weighted.mean(p_value,  w = get(weight_col), na.rm = TRUE),
           weight_sum = sum(get(weight_col), na.rm = TRUE),
-          n_grids    = uniqueN(grid_id)
+          n_grids    = uniqueN(grid_id),
+          positive_prop01 = weighted.mean(trend_class01 %in% "Positive", w = get(weight_col), na.rm = TRUE),
+          negative_prop01 = weighted.mean(trend_class01 %in% "Negative", w = get(weight_col), na.rm = TRUE),
+          positive_prop05 = weighted.mean(trend_class05 %in% "Positive", w = get(weight_col), na.rm = TRUE),
+          negative_prop05 = weighted.mean(trend_class05 %in% "Negative", w = get(weight_col), na.rm = TRUE),
+          positive_prop10 = weighted.mean(trend_class10 %in% "Positive", w = get(weight_col), na.rm = TRUE),
+          negative_prop10 = weighted.mean(trend_class10 %in% "Negative", w = get(weight_col), na.rm = TRUE)
         ),
-        by = c(county_col, "history_range")
+        by = c(county_col,"precipitation","model_estimator", "history_range")
       ]
 
       county_res[
         ,
-        trend_class := fifelse(
-          is.na(p_value_w), NA_character_,
-          fifelse(p_value_w > 0.05, "None",
-                  fifelse(estimate_w > 0, "Positive",
-                          fifelse(estimate_w < 0, "Negative", "None")))
-        )
+        trend_class01 := fifelse(
+          positive_prop01 > 0.5, "Positive",
+          fifelse(negative_prop01 > 0.5, "Negative", "None"))
       ]
 
+      county_res[
+        ,
+        trend_class05 := fifelse(
+          positive_prop05 > 0.5, "Positive",
+          fifelse(negative_prop05 > 0.5, "Negative", "None"))
+      ]
+
+      county_res[
+        ,
+        trend_class10 := fifelse(
+          positive_prop10 > 0.5, "Positive",
+          fifelse(negative_prop10 > 0.5, "Negative", "None"))
+      ]
       # Save county results
       saveRDS(county_res, output_file_county)
       message("Saved county results: ", output_file_county)
