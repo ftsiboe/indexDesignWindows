@@ -1,16 +1,29 @@
-
+# ============================================================
+# Precipitation Trend Workflow
+# Linear county-level trend estimation only
+# ============================================================
 
 rm(list = ls(all = TRUE))
 gc()
+
+# ============================================================
+# Load required packages
+# ============================================================
 
 suppressPackageStartupMessages({
   library(data.table)
   library(tidyr)
   library(plm)
   library(lmtest)
+  library(stringr)
 })
 
-devtools::document()
+# Use this only if you are actively developing the package.
+# devtools::document()
+
+# ============================================================
+# Read input data
+# ============================================================
 
 study_environment <- readRDS("data/study_environment.rds")
 
@@ -18,60 +31,126 @@ output_directory <- "data-raw/fastscratch/precipitation_trend"
 dir.create(output_directory, recursive = TRUE, showWarnings = FALSE)
 
 prf_grid_weights <- as.data.table(readRDS("data/prf_grid_weights.rds"))
-cpc_data         <- readRDS("data/cpc_historic_precipitation.rds")
+cpc_data         <- as.data.table(readRDS("data/cpc_historic_precipitation.rds"))
 
-# Ensure data.table for safe subsetting
-cpc_data <- as.data.table(cpc_data)
-
-official_interval_names <- as.data.table(readRDS("data/official_interval_names.rds"))
-
-# Keep only needed columns and deduplicate
-official_interval_names <- unique(
-  official_interval_names[, .(month_end_code, month_beg_code, interval_name)]
+official_interval_names <- as.data.table(
+  readRDS("data/official_interval_names.rds")
 )
 
-# Long format: stack begin/end month codes into a single "month" column
+# Keep only the variables needed to define the PRF intervals
+official_interval_names <- unique(
+  official_interval_names[
+    ,
+    .(month_end_code, month_beg_code, interval_name)
+  ]
+)
+
+# Convert beginning and ending month codes into one common month column.
+# This allows the CPC monthly data to be matched to PRF interval definitions.
 official_interval_names <- tidyr::gather(
   official_interval_names,
   key   = "name",
   value = "month",
-  month_end_code, month_beg_code
+  month_end_code,
+  month_beg_code
 )
 
-# -----------------------
-data <- as.data.table(cpc_data)[
+official_interval_names <- as.data.table(official_interval_names)
+
+# ============================================================
+# Build precipitation-by-grid-by-interval panel
+# ============================================================
+
+# Join CPC precipitation data to official PRF interval definitions.
+# The join uses common column names between cpc_data and official_interval_names.
+data <- cpc_data[
   official_interval_names,
   on = intersect(names(cpc_data), names(official_interval_names)),
   allow.cartesian = TRUE,
   nomatch = 0
 ]
 
+# Aggregate precipitation to the commodity-year, grid, and interval level.
 data <- data[
-  , .(
-    precipitation = sum(precipitation, na.rm = TRUE),
+  ,
+  .(
+    precipitation     = sum(precipitation, na.rm = TRUE),
     precipitation_rma = sum(precipitation_rma, na.rm = TRUE)
   ),
-  by = c("commodity_year", "grid_id", "interval_name")
+  by = .(commodity_year, grid_id, interval_name)
 ]
-data[,county_fips := as.character(factor(grid_id,prf_grid_weights$grid_id,prf_grid_weights$county_fips))]
-data <- tidyr::separate(data,"county_fips",into=c("state_code","county_code"),sep=2,remove=FALSE)
+
+# ============================================================
+# Attach county and state identifiers
+# ============================================================
+
+# Create a grid-to-county lookup table.
+# This avoids relying on factor labels to map grid_id to county_fips.
+grid_county_lookup <- unique(
+  prf_grid_weights[
+    ,
+    .(grid_id, county_fips)
+  ]
+)
+
+grid_county_lookup[, county_fips := as.character(county_fips)]
+
+# Merge county FIPS onto the precipitation panel
+data <- grid_county_lookup[
+  data,
+  on = "grid_id"
+]
+
+# Split county FIPS into state and county codes
+data <- tidyr::separate(
+  data,
+  col    = "county_fips",
+  into   = c("state_code", "county_code"),
+  sep    = 2,
+  remove = FALSE
+)
+
 data <- as.data.table(data)
 
-data[, panelid := paste(grid_id, interval_name, sep = "_")]
-data[, trend := commodity_year - min(commodity_year, na.rm = TRUE)]
+# Define the panel unit.
+# Each panel is a grid-by-interval combination observed over years.
+data[
+  ,
+  panelid := paste(grid_id, interval_name, sep = "_")
+]
+
+# Latest commodity year in the dataset
 current_year <- max(data$commodity_year, na.rm = TRUE)
 
-# data <- data[state_code %in% unique(data$state_code)[1:3]]
+# Optional testing filter.
+# Remove this line when running the full national workflow.
+# data <- data[state_code %in% unique(data$state_code)[1:2]]
 
-# -----------------------
-# Helper
-# -----------------------
+# ============================================================
+# Helper function: estimate one model for one state
+# ============================================================
+
 estimate_one_state <- function(dt, formula, model = "within") {
 
+  # ------------------------------------------------------------
   # Guardrails
+  # ------------------------------------------------------------
+  # These prevent model estimation when the state-window sample
+  # is too small for reliable panel estimation.
+  # ------------------------------------------------------------
+
   if (nrow(dt) < 10L) return(NULL)
   if (length(unique(dt$commodity_year)) < 3L) return(NULL)
   if (length(unique(dt$panelid)) < 2L) return(NULL)
+
+  # ------------------------------------------------------------
+  # Estimate panel model
+  # ------------------------------------------------------------
+  # model options:
+  #   "within"  = fixed effects
+  #   "random"  = random effects
+  #   "pooling" = pooled OLS
+  # ------------------------------------------------------------
 
   obj <- plm::plm(
     formula = formula,
@@ -80,121 +159,243 @@ estimate_one_state <- function(dt, formula, model = "within") {
     model   = model
   )
 
+  # ------------------------------------------------------------
+  # Double-cluster robust standard errors
+  # ------------------------------------------------------------
+  # vcovDC accounts for dependence across both panel and time.
+  # ------------------------------------------------------------
+
   V  <- plm::vcovDC(obj)
   ct <- lmtest::coeftest(obj, vcov = V)
 
-  data.table::data.table(
-    county_fips    = gsub("trend:factor[(]county_fips[)]","",rownames(ct)),
+  # ------------------------------------------------------------
+  # Return tidy coefficient table
+  # ------------------------------------------------------------
+
+  out <- data.table::data.table(
+    term           = rownames(ct),
     estimate       = ct[, "Estimate"],
     standard_error = ct[, "Std. Error"],
     t_value        = ct[, "t value"],
     p_value        = ct[, "Pr(>|t|)"]
   )
+
+  # Extract county FIPS from terms like:
+  # trend:factor(county_fips)20001
+  out[
+    ,
+    county_fips := gsub(
+      "trend:factor[(]county_fips[)]",
+      "",
+      term
+    )
+  ]
+
+  out[]
 }
 
+# ============================================================
+# Helper function: estimate county trends for one estimator
+# ============================================================
 
-# -----------------------
-# Fit models by focal grid_id, for each history window
-# -----------------------
+estimate_by_estimator <- function(dtw, estimator) {
 
-# Rolling windows to fit (years of history)
+  # Linear county-specific trend model.
+  # This estimates one precipitation trend for each county FIPS.
+  fml <- precipitation ~ trend:factor(county_fips)
+
+  res <- dtw[
+    ,
+    {
+      out_i <- tryCatch(
+        estimate_one_state(
+          dt      = .SD,
+          formula = fml,
+          model   = estimator
+        ),
+        error = function(e) NULL
+      )
+
+      # Return a consistent empty row if model estimation fails.
+      if (is.null(out_i)) {
+        data.table(
+          term           = NA_character_,
+          county_fips    = NA_character_,
+          estimate       = NA_real_,
+          standard_error = NA_real_,
+          t_value        = NA_real_,
+          p_value        = NA_real_
+        )
+      } else {
+        out_i
+      }
+    },
+    by = .(state_code)
+  ]
+
+  res[, model_estimator := estimator]
+
+  res[]
+}
+
+# ============================================================
+# Define history windows
+# ============================================================
+
+# Rolling windows to fit.
+# 5:60 = 5-year through 60-year windows.
+# 200 = long/full-history window if available.
 history_windows <- c(seq(5, 60, 1), 200)
-# history_windows <- history_windows[1:3]  # for testing
 
-# SLURM array support: if SLURM_ARRAY_TASK_ID is set, run only that window
-slurm_id <- suppressWarnings(as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID")))
+# For quick testing, uncomment:
+# history_windows <- history_windows[1:3]
+
+# ============================================================
+# SLURM array support
+# ============================================================
+
+# If this script is submitted as a SLURM array job, each array task
+# estimates one history window.
+slurm_id <- suppressWarnings(
+  as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+)
+
 if (!is.na(slurm_id)) {
+
+  if (slurm_id < 1L || slurm_id > length(history_windows)) {
+    stop("SLURM_ARRAY_TASK_ID is outside the range of history_windows.")
+  }
+
   history_windows <- history_windows[slurm_id]
 }
 
+# ============================================================
+# Main estimation loop
+# ============================================================
+
 invisible(
   lapply(history_windows, function(i) {
-    #tryCatch({
 
     # i <- history_windows[1]
+    # Output file for this history window
     output_file_county <- file.path(
       output_directory,
-      paste0("county_precipitation_trends_", stringr::str_pad(i, width = 3, pad = "0"), ".rds")
+      paste0(
+        "county_precipitation_trends_",
+        stringr::str_pad(i, width = 3, pad = "0"),
+        ".rds"
+      )
     )
 
+    # Select years included in the current rolling window
     yrs <- (current_year - i + 1):current_year
-    dtw <- data[commodity_year %in% yrs]
-    if (nrow(dtw) == 0L) stop("No data for window length i = ", i)
 
-    # Grid-level estimation (each grid_id uses pooled sample: focal + queen neighbors)
+    dtw <- data[
+      commodity_year %in% yrs
+    ]
 
-    #
+    if (nrow(dtw) == 0L) {
+      stop("No data for window length i = ", i)
+    }
+
+    # Define linear trend within the selected history window.
+    # The first year in each window is coded as zero.
+    dtw[
+      ,
+      trend := commodity_year - min(commodity_year, na.rm = TRUE)
+    ]
+
+    # Estimate three panel specifications
+    estimators <- c("within", "random", "ht", "between", "pooling", "fd")
+    # estimators <- c("pooling")
     res <- data.table::rbindlist(
       lapply(
-        c("within", "random", "ht", "between", "pooling", "fd"), # "within", "random",
-        function(estimator){
-          tryCatch({
-            # estimator <- "pooling"
-            res <- dtw[
-              ,{out_i <- tryCatch(
-                estimate_one_state(
-                  dt      = .SD,
-                  formula = precipitation ~ trend:factor(county_fips),
-                  model   = estimator
-                ),
-                error = function(e) NULL
-              )
-              if(is.null(out_i)) {
-                list(county_fips=NA_character_ ,estimate = NA_real_,standard_error = NA_real_,t_value = NA_real_,p_value = NA_real_)
-              } else {out_i}},by = .(state_code)]
+        estimators,
+        function(estimator) {
+          tryCatch(
+            estimate_by_estimator(
+              dtw       = dtw,
+              estimator = estimator
+            ),
+            error = function(e) NULL
+          )
+        }
+      ),
+      fill = TRUE
+    )
 
-            res[, model_estimator := estimator]
-            res
-          }, error = function(e){NULL})
-        }),fill = TRUE);gc()
+    # Add history window identifier
+    res[
+      ,
+      history_range := i
+    ]
 
-    res[, history_range := i]
+    # ========================================================
+    # Classify county trends by statistical significance
+    # ========================================================
 
-    # classification (optional)
+    # 1% significance level
     res[
       ,
       trend_class01 := fifelse(
-        is.na(p_value), NA_character_,
-        fifelse(p_value > 0.01, "None",
-                fifelse(estimate > 0, "Positive",
-                        fifelse(estimate < 0, "Negative", "None")))
+        is.na(p_value),
+        NA_character_,
+        fifelse(
+          p_value > 0.01,
+          "None",
+          fifelse(
+            estimate > 0,
+            "Positive",
+            fifelse(estimate < 0, "Negative", "None")
+          )
+        )
       )
     ]
 
+    # 5% significance level
     res[
       ,
       trend_class05 := fifelse(
-        is.na(p_value), NA_character_,
-        fifelse(p_value > 0.05, "None",
-                fifelse(estimate > 0, "Positive",
-                        fifelse(estimate < 0, "Negative", "None")))
+        is.na(p_value),
+        NA_character_,
+        fifelse(
+          p_value > 0.05,
+          "None",
+          fifelse(
+            estimate > 0,
+            "Positive",
+            fifelse(estimate < 0, "Negative", "None")
+          )
+        )
       )
     ]
 
+    # 10% significance level
     res[
       ,
       trend_class10 := fifelse(
-        is.na(p_value), NA_character_,
-        fifelse(p_value > 0.10, "None",
-                fifelse(estimate > 0, "Positive",
-                        fifelse(estimate < 0, "Negative", "None")))
+        is.na(p_value),
+        NA_character_,
+        fifelse(
+          p_value > 0.10,
+          "None",
+          fifelse(
+            estimate > 0,
+            "Positive",
+            fifelse(estimate < 0, "Negative", "None")
+          )
+        )
       )
     ]
 
+    # Save results for this history window
     saveRDS(res, output_file_county)
-    message("Saved county results: ", output_file_county)
+
+    message("Saved county linear results: ", output_file_county)
 
     invisible(TRUE)
-    #}, error = function(e) {message("Window ", i, " failed: ", conditionMessage(e))})
   })
 )
-
-
-
-
-
-
-
 
 
 
