@@ -125,7 +125,58 @@ current_year <- max(data$commodity_year, na.rm = TRUE)
 # Optional testing filter.
 # Remove this line when running the full national workflow.
 # data <- data[state_code %in% unique(data$state_code)[1:2]]
+# ============================================================
+# Helper function: extract model diagnostics
+# ============================================================
 
+extract_model_diagnostics <- function(obj) {
+
+  smry <- summary(obj)
+
+  # ----------------------------
+  # R-squared values
+  # ----------------------------
+  r2_values <- tryCatch(
+    smry$r.squared,
+    error = function(e) NULL
+  )
+
+  r_squared <- NA_real_
+  adj_r_squared <- NA_real_
+
+  if (!is.null(r2_values)) {
+    if ("rsq" %in% names(r2_values)) {
+      r_squared <- as.numeric(r2_values["rsq"])
+    }
+
+    if ("adjrsq" %in% names(r2_values)) {
+      adj_r_squared <- as.numeric(r2_values["adjrsq"])
+    }
+  }
+
+  # ----------------------------
+  # Residual-based fit measures
+  # ----------------------------
+  residuals_i <- residuals(obj)
+
+  rss <- sum(residuals_i^2, na.rm = TRUE)
+  rmse <- sqrt(mean(residuals_i^2, na.rm = TRUE))
+
+  # ----------------------------
+  # Panel dimensions
+  # ----------------------------
+  panel_index <- plm::index(obj)
+
+  data.table::data.table(
+    n_obs         = stats::nobs(obj),
+    n_panel       = length(unique(panel_index[[1]])),
+    n_years       = length(unique(panel_index[[2]])),
+    r_squared     = r_squared,
+    adj_r_squared = adj_r_squared,
+    rss           = rss,
+    rmse          = rmse
+  )
+}
 # ============================================================
 # Helper function: estimate one model for one state
 # ============================================================
@@ -135,9 +186,6 @@ estimate_one_state <- function(dt, formula, model = "within") {
   # ------------------------------------------------------------
   # Guardrails
   # ------------------------------------------------------------
-  # These prevent model estimation when the state-window sample
-  # is too small for reliable panel estimation.
-  # ------------------------------------------------------------
 
   if (nrow(dt) < 10L) return(NULL)
   if (length(unique(dt$commodity_year)) < 3L) return(NULL)
@@ -145,11 +193,6 @@ estimate_one_state <- function(dt, formula, model = "within") {
 
   # ------------------------------------------------------------
   # Estimate panel model
-  # ------------------------------------------------------------
-  # model options:
-  #   "within"  = fixed effects
-  #   "random"  = random effects
-  #   "pooling" = pooled OLS
   # ------------------------------------------------------------
 
   obj <- plm::plm(
@@ -160,16 +203,14 @@ estimate_one_state <- function(dt, formula, model = "within") {
   )
 
   # ------------------------------------------------------------
-  # Double-cluster robust standard errors
-  # ------------------------------------------------------------
-  # vcovDC accounts for dependence across both panel and time.
+  # Robust coefficient table
   # ------------------------------------------------------------
 
   V  <- plm::vcovDC(obj)
   ct <- lmtest::coeftest(obj, vcov = V)
 
   # ------------------------------------------------------------
-  # Return tidy coefficient table
+  # Coefficient output
   # ------------------------------------------------------------
 
   out <- data.table::data.table(
@@ -180,8 +221,6 @@ estimate_one_state <- function(dt, formula, model = "within") {
     p_value        = ct[, "Pr(>|t|)"]
   )
 
-  # Extract county FIPS from terms like:
-  # trend:factor(county_fips)20001
   out[
     ,
     county_fips := gsub(
@@ -190,6 +229,18 @@ estimate_one_state <- function(dt, formula, model = "within") {
       term
     )
   ]
+
+  # ------------------------------------------------------------
+  # Model diagnostics
+  # ------------------------------------------------------------
+  # These are repeated across coefficient rows from the same model.
+  # That is okay because each county coefficient belongs to the same
+  # state-window-estimator model.
+  # ------------------------------------------------------------
+
+  diag <- extract_model_diagnostics(obj)
+
+  out <- cbind(out, diag)
 
   out[]
 }
@@ -200,17 +251,13 @@ estimate_one_state <- function(dt, formula, model = "within") {
 
 estimate_by_estimator <- function(dtw, estimator) {
 
-  # Linear county-specific trend model.
-  # This estimates one precipitation trend for each county FIPS.
-  fml <- precipitation ~ trend:factor(county_fips)
-
   res <- dtw[
     ,
     {
       out_i <- tryCatch(
         estimate_one_state(
           dt      = .SD,
-          formula = fml,
+          formula = precipitation ~ trend:factor(county_fips),
           model   = estimator
         ),
         error = function(e) NULL
@@ -307,7 +354,7 @@ invisible(
 
     # Estimate three panel specifications
     estimators <- c("within", "random", "ht", "between", "pooling", "fd")
-    # estimators <- c("pooling")
+    # estimators <- c("pooling");estimator <- "pooling"
     res <- data.table::rbindlist(
       lapply(
         estimators,
