@@ -309,10 +309,6 @@ slurm_id <- suppressWarnings(
 
 if (!is.na(slurm_id)) {
 
-  if (slurm_id < 1L || slurm_id > length(history_windows)) {
-    stop("SLURM_ARRAY_TASK_ID is outside the range of history_windows.")
-  }
-
   history_windows <- history_windows[slurm_id]
 }
 
@@ -353,7 +349,7 @@ invisible(
     ]
 
     # Estimate three panel specifications
-    estimators <- c("within", "random", "ht", "between", "pooling", "fd")
+    estimators <- c("pooling","within", "random", "ht", "between", "fd")
     # estimators <- c("pooling");estimator <- "pooling"
     res <- data.table::rbindlist(
       lapply(
