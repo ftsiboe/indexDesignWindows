@@ -1,9 +1,10 @@
 # Hard reset of workspace
 rm(list = ls(all = TRUE));gc()
-library(data.table);library(rfcipPRF)
+library(data.table)#;library(rfcipPRF)
 #----------------------------------------------------
 # Initialize environment                          ####
 devtools::document()
+dir.create("data", recursive = TRUE, showWarnings = FALSE)
 temporary_dir <- tempdir()
 study_environment <- setup_environment(
   year_beg = 2016, year_end = 2025, seed = 1980632,
@@ -30,8 +31,8 @@ rma_adm <- data.table::rbindlist(
         piggyback::pb_download(
           file = file_name,
           dest = temporary_dir,
-          repo = "ftsiboe/rfcipPRF",
-          tag  = "prf_official",
+          repo = "ftsiboe/USFarmSafetyNetLab",
+          tag  = "prf",
           overwrite = TRUE)
         df <- readRDS(file.path(temporary_dir,file_name))[
           type_code %in% c(7,64),.(rma_county_base_value = mean(county_base_value, na.rm=T),
@@ -44,6 +45,15 @@ rma_adm <- data.table::rbindlist(
 rma_adm[,coverage_level:=round(coverage_level_percent*100)]
 saveRDS(rma_adm,"data/grid_level_official_prf_adm.rds")
 #----------------------------------------------------
+# official_RMA_RI_grid_01 ####
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
+piggyback::pb_download(
+  file = "official_RMA_RI_grid_01.zip",
+  dest = "data",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
+  overwrite = TRUE)
+#----------------------------------------------------
 # Official interval names                         ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 temporary_dir <- tempdir()
@@ -51,8 +61,8 @@ file_name <- "intervalKey.rds"
 piggyback::pb_download(
   file = file_name,
   dest = temporary_dir,
-  repo = "ftsiboe/rfcipPRF",
-  tag  = "prf_official",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
   overwrite = TRUE)
 
 intervalKey <- readRDS(file.path(temporary_dir,file_name))
@@ -69,8 +79,8 @@ file_name <- "rmaRainfallIndices.rds"
 piggyback::pb_download(
   file = file_name,
   dest = temporary_dir,
-  repo = "ftsiboe/rfcipPRF",
-  tag  = "prf_official",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
   overwrite = TRUE)
 rma_data <- as.data.table(readRDS(file.path(temporary_dir,file_name)))[
   Commodity0088 %in% 1 & insurance_plan_code %in% 13 & commodity_year %in% study_environment$year_beg:study_environment$year_end,
@@ -86,8 +96,8 @@ file_name <- "potential_prf_grids.rds"
 piggyback::pb_download(
   file = file_name,
   dest = temporary_dir,
-  repo = "ftsiboe/rfcipPRF",
-  tag  = "prf_extracts",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
   overwrite = TRUE)
 data <- readRDS(file.path(temporary_dir,file_name))
 saveRDS(data,"data/prf_grid_weights.rds")
@@ -97,8 +107,8 @@ rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 piggyback::pb_download(
   file = "prf_county_penetration.rds",
   dest = "data",
-  repo = "ftsiboe/rfcipPRF",
-  tag  = "prf_extracts",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
   overwrite = TRUE)
 #----------------------------------------------------
 # Official PRF county penetration                 ####
@@ -106,8 +116,8 @@ rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 piggyback::pb_download(
   file = "cpc_historic_precipitation.rds",
   dest = "data",
-  repo = "ftsiboe/rfcipPRF",
-  tag  = "cpc",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
   overwrite = TRUE)
 #----------------------------------------------------
 # Official PRF SOB                                ####
@@ -115,8 +125,8 @@ rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 piggyback::pb_download(
   file = "prf_sobtpu.rds",
   dest = "data",
-  repo = "ftsiboe/rfcipPRF",
-  tag  = "prf_official",
+  repo = "ftsiboe/USFarmSafetyNetLab",
+  tag  = "prf",
   overwrite = TRUE)
 
 #----------------------------------------------------
