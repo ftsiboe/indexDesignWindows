@@ -133,7 +133,6 @@ data[
 
 current_year <- max(data$commodity_year, na.rm = TRUE)
 
-
 # Optional testing filter.
 # Uncomment when testing on only a few states.
 # data <- data[state_code %in% unique(data$state_code)[1:2]]
