@@ -10,9 +10,9 @@ prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
 Keep.List<-c("Keep.List",ls())
 
 data <- readRDS("data-raw/output/county_precipitation_trend.rds")
-unique(data$trend_class)
+# unique(data$trend_class05)
 
-data <- data[model_estimator %in% "random" & precipitation %in% "log"]
+data <- data[model_estimator %in% "pooling"]
 # "random","pooling","within"
 fig_trend <- plot_prf_statistics(
   data = data[history_range %in% c(5,10,15,20,25,30,35,40,45,50,55,60,200)],

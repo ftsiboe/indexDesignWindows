@@ -45,7 +45,7 @@ rma_adm <- data.table::rbindlist(
 rma_adm[,coverage_level:=round(coverage_level_percent*100)]
 saveRDS(rma_adm,"data/grid_level_official_prf_adm.rds")
 #----------------------------------------------------
-# official_RMA_RI_grid_01 ####
+# official_RMA_RI_grid_01                         ####
 rm(list= ls()[!(ls() %in% c(Keep.List))]);gc()
 piggyback::pb_download(
   file = "official_RMA_RI_grid_01.zip",
@@ -142,5 +142,84 @@ data <- readRDS(file.path(temporary_dir,"nassSurveyHayProduction.rds"))
 data[, data_source :=NULL]
 saveRDS(data,file="data/nass_hay_production.rds")
 #----------------------------------------------------
+# prf counties                                    ####
+rm(list= ls()[!(ls() %in% c(Keep.List))])
+
+library(data.table)
+library(tidyr)
+library(sf)
+library(terra)
+
+use_count   <- urbnmapr::get_urbn_map(map = "counties", sf = TRUE)
+prf_polygon <- get_official_prf_polygon("data/official_RMA_RI_grid_01.zip")
 
 
+# Make CRS consistent once
+use_count_proj <- sf::st_transform(
+  use_count,
+  crs = sf::st_crs(prf_polygon)
+)
+
+# Convert county sf object to terra
+use_count_v <- terra::vect(use_count_proj)
+
+# prf_polygon is already terra
+prf_polygon_v <- prf_polygon
+
+# Function for one county
+extract_one_county <- function(i) {
+  county_i <- use_count_v[i, ]
+  county_fips_i <- use_count_proj$county_fips[i]
+
+  out <- terra::mask(
+    terra::crop(prf_polygon_v, terra::ext(county_i)),
+    county_i
+  )
+
+  out <- as.data.table(out)
+  out[, county_fips := county_fips_i]
+
+  out
+}
+
+# Apply across counties
+prf_counties <- rbindlist(
+  lapply(seq_len(nrow(use_count_proj)), function(i) {
+    tryCatch(
+      extract_one_county(i),
+      error = function(e) {
+        message("Failed county_fips = ", use_count_proj$county_fips[i], ": ", e$message)
+        NULL
+      }
+    )
+  }),
+  fill = TRUE
+)
+prf_counties <- tidyr::separate(prf_counties,"county_fips", sep=2,into=c("state_code","county_code"),remove=FALSE)
+prf_counties$state_code <- as.numeric(as.character(prf_counties$state_code))
+prf_counties$county_code <- as.numeric(as.character(prf_counties$county_code))
+saveRDS(as.data.table(prf_counties[c("grid_id","county_fips","state_code","county_code")]),file="data/prf_counties.rds")
+
+
+# # Convert PRF polygon from terra to sf
+# prf_polygon_sf <- sf::st_as_sf(prf_polygon)
+#
+# # Match CRS
+# use_count_proj <- sf::st_transform(
+#   use_count,
+#   sf::st_crs(prf_polygon_sf)
+# )
+#
+# # Intersect all at once
+# prf_intersected <- sf::st_intersection(
+#   prf_polygon_sf,
+#   use_count_proj[, "county_fips"]
+# )
+#
+# # Optional: calculate overlap area
+# prf_intersected$area_overlap <- as.numeric(sf::st_area(prf_intersected))
+#
+# # Drop geometry if you only need the table
+# res_dt <- as.data.table(sf::st_drop_geometry(prf_intersected))
+
+#----------------------------------------------------
