@@ -36,5 +36,7 @@ code_of_conduct.md
 ^data/[^/]+\.rds$
 ^data/[^/]+/[^/]+\.rds$
 ^data/[^/]+/[^/]+/[^/]+\.rds$
-
+^data/[^/]+\.zip$
+^data/[^/]+/[^/]+\.zip$
+^data/[^/]+/[^/]+/[^/]+\.zip$
 

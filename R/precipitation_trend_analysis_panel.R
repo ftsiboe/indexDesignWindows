@@ -31,7 +31,7 @@
 #' from `summary(obj)$r.squared` when available. Residual-based diagnostics
 #' are computed directly from the model residuals. Panel dimensions are
 #' recovered from `plm::index(obj)`.
-#'
+#' @family Precipitation trend analysis
 #' @export
 extract_model_diagnostics <- function(obj) {
 
@@ -130,7 +130,7 @@ extract_model_diagnostics <- function(obj) {
 #'
 #' If the outcome variable or trend variable changes, the pre-weighting block
 #' must be updated accordingly.
-#' @family Precipitation trend_analysis
+#' @family Precipitation trend analysis
 #' @export
 estimate_one_state_fgls <- function(dt, formula, model = "within", eps = 1e-8) {
 
@@ -251,7 +251,7 @@ estimate_one_state_fgls <- function(dt, formula, model = "within", eps = 1e-8) {
 #' Robust coefficient tables are computed using `lmtest::coeftest()` with
 #' `plm::vcovDC()`. This is possible because the final mean model is estimated
 #' using pre-weighted variables rather than the `weights` argument in `plm`.
-#' @family Precipitation trend_analysis
+#' @family Precipitation trend analysis
 #' @export
 estimate_one_state <- function(dt, formula, model = "within") {
 
@@ -351,7 +351,7 @@ estimate_one_state <- function(dt, formula, model = "within") {
 #' state model fails, the function returns a structured empty row with missing
 #' values, allowing downstream `rbindlist()` calls to remain stable.
 #'
-#' @family Precipitation trend_analysis
+#' @family Precipitation trend analysis
 #' @export
 estimate_by_estimator <- function(dtw, estimator) {
 
@@ -446,7 +446,7 @@ estimate_by_estimator <- function(dtw, estimator) {
 #'   \item{"None"}{Estimate is not statistically significant or equals zero.}
 #'   \item{NA}{Estimate or p-value is missing.}
 #' }
-#' @family Precipitation trend_analysis
+#' @family Precipitation trend analysis
 #' @export
 classify_trend <- function(estimate, p_value, p_value_sig = 0.05) {
   data.table::fifelse(
@@ -492,7 +492,7 @@ classify_trend <- function(estimate, p_value, p_value_sig = 0.05) {
 #'
 #' With two tests, the reference distribution is chi-square with `2 * 2 = 4`
 #' degrees of freedom. Missing, zero, or negative p-values return `NA`.
-#' @family Precipitation trend_analysis
+#' @family Precipitation trend analysis
 #' @export
 fisher_joint_pvalue <- function(p1, p2) {
 
@@ -556,7 +556,7 @@ fisher_joint_pvalue <- function(p1, p2) {
 #' Fisher's method is reported separately as a combined-evidence test across the
 #' mean and variance p-values. The final `trend_class_XX` columns are intended
 #' for interpretation, mapping, and summary tables.
-#' @family Precipitation trend_analysis
+#' @family Precipitation trend analysis
 #' @export
 classify_mean_variance_trends <- function(
     res,

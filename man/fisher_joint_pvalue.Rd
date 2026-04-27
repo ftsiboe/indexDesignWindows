@@ -33,11 +33,12 @@ With two tests, the reference distribution is chi-square with \code{2 * 2 = 4}
 degrees of freedom. Missing, zero, or negative p-values return \code{NA}.
 }
 \seealso{
-Other Precipitation trend_analysis: 
+Other Precipitation trend analysis: 
 \code{\link{classify_mean_variance_trends}()},
 \code{\link{classify_trend}()},
 \code{\link{estimate_by_estimator}()},
 \code{\link{estimate_one_state}()},
-\code{\link{estimate_one_state_fgls}()}
+\code{\link{estimate_one_state_fgls}()},
+\code{\link{extract_model_diagnostics}()}
 }
-\concept{Precipitation trend_analysis}
+\concept{Precipitation trend analysis}

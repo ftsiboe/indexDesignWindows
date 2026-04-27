@@ -60,11 +60,12 @@ mean and variance p-values. The final \code{trend_class_XX} columns are intended
 for interpretation, mapping, and summary tables.
 }
 \seealso{
-Other Precipitation trend_analysis: 
+Other Precipitation trend analysis: 
 \code{\link{classify_trend}()},
 \code{\link{estimate_by_estimator}()},
 \code{\link{estimate_one_state}()},
 \code{\link{estimate_one_state_fgls}()},
+\code{\link{extract_model_diagnostics}()},
 \code{\link{fisher_joint_pvalue}()}
 }
-\concept{Precipitation trend_analysis}
+\concept{Precipitation trend analysis}

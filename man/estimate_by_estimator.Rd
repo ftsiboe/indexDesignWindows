@@ -34,11 +34,12 @@ state model fails, the function returns a structured empty row with missing
 values, allowing downstream \code{rbindlist()} calls to remain stable.
 }
 \seealso{
-Other Precipitation trend_analysis: 
+Other Precipitation trend analysis: 
 \code{\link{classify_mean_variance_trends}()},
 \code{\link{classify_trend}()},
 \code{\link{estimate_one_state}()},
 \code{\link{estimate_one_state_fgls}()},
+\code{\link{extract_model_diagnostics}()},
 \code{\link{fisher_joint_pvalue}()}
 }
-\concept{Precipitation trend_analysis}
+\concept{Precipitation trend analysis}

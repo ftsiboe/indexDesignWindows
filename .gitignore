@@ -10,4 +10,4 @@ data/*.rds
 data/*/*.rds
 data/*/*/*.rds
 .DS_Store
-
+data/.zip
