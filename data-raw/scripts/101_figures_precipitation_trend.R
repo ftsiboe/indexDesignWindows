@@ -9,7 +9,6 @@ redesigns_directory  <- study_environment$wd$redesigns
 prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
 Keep.List<-c("Keep.List",ls())
 
-
 current_year <- max(readRDS("data/cpc_historic_precipitation.rds")$commodity_year,
                     na.rm = TRUE)
 start_year   <- min(readRDS("data/cpc_historic_precipitation.rds")$commodity_year,
