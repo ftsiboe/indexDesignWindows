@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Preliminaries                                                              ####
-rm(list = ls(all = TRUE));library(data.table);library(future.apply);library(rfcipPRF);gc()
+rm(list = ls(all = TRUE));library(data.table);gc()
 devtools::document()
 study_environment <- readRDS("data/study_environment.rds")
 output_directory <- "data-raw/releases/baseline"

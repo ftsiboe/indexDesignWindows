@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Preliminaries                                                              ####
-rm(list = ls(all = TRUE));library(data.table);library(future.apply);library(rfcipPRF);gc()
+rm(list = ls(all = TRUE));library(data.table);gc()
 devtools::document()
 study_environment <- readRDS("data/study_environment.rds")
 myline <- paste0(rep("---",5),collapse = "")
@@ -14,6 +14,9 @@ statistics_list <- c(
 )
 output_directory <- "data-raw/releases/baseline"
 if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
+if (!dir.exists("data-raw/output/figure/baseline_summary_index")) dir.create("data-raw/output/figure/baseline_summary_index", recursive = TRUE)
+if (!dir.exists("data-raw/output/figure/baseline_summary_payment_factor")) dir.create("data-raw/output/figure/baseline_summary_payment_factor", recursive = TRUE)
+if (!dir.exists("data-raw/output/figure/baseline_summary_base_rate")) dir.create("data-raw/output/figure/baseline_summary_base_rate", recursive = TRUE)
 redesigns_directory  <- study_environment$wd$redesigns
 prf_grid_weights <- readRDS("data/prf_grid_weights.rds")
 Keep.List<-c("Keep.List",ls())
