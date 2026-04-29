@@ -222,50 +222,14 @@ ggsave(file.path("data-raw/output/figure","threshold_statistical.png"),
 
 #-------------------------------------------------------------------------------
 # Plot - actuarial  analysis                                                 ####
-
-data_actuarial <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")
-
-data_actuarial <- data.table::rbindlist(
-  lapply(
-    data_actuarial[!grepl("200",data_actuarial)],
-    function(i) {
-      tryCatch({
-        # i <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")[2]
-        data <- readRDS(i)
-        data <- data[!baseline_total_premium_amount %in% c(0,NA,Inf,-Inf,NaN)]
-        data <- data[!alternative_total_premium_amount %in% c(0,NA,Inf,-Inf,NaN)]
-        data <- data[!baseline_indemnity_amount %in% c(NA,Inf,-Inf,NaN)]
-        data <- data[!alternative_indemnity_amount %in% c(NA,Inf,-Inf,NaN)]
-
-        data <- data[
-          , lapply(.SD, function(x) sum(x, na.rm = TRUE)),
-          by = c("index_history_range","adjustment"),
-          .SDcols = c("alternative_indemnity_amount","alternative_total_premium_amount",
-                      "baseline_indemnity_amount","baseline_total_premium_amount" )]
-
-        data[,alternative_lr  := alternative_indemnity_amount/alternative_total_premium_amount]
-        data[,baseline_lr     := baseline_indemnity_amount/baseline_total_premium_amount]
-        data[,actuarial_index := (abs(alternative_lr-1) - abs(baseline_lr-1))*100]
-
-        data
-      }, error = function(e){NULL})
-    }),fill = TRUE)
-
-data_actuarial[,history_range := as.numeric(gsub("[^0-9]","",index_history_range))]
-data_actuarial[
-  ,adjustmentCat := factor(
-    adjustment,
-    levels = 0:3,
-    labels = c("Unadjusted",
-               "Adjusted for RMA Rate Discretion",
-               "Adjusted for RMA Index Discretion",
-               "Adjusted for RMA Index and Rate Discretion") )
-]
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+data_actuarial <- as.data.table(readRDS("data-raw/releases/alternative/summary_actuarial.rds"))
+data_actuarial <- data_actuarial[disaggregate %in% "full" & disaggregate_level %in% "full" ]
 
 fig_actuarial <- ggplot(
-  data_actuarial[history_range >= 20],
+  data_actuarial[history_years >= 20],
   aes(
-    x     = history_range,
+    x     = history_years,
     y     = actuarial_index,
     fill  = adjustmentCat,
     color  = adjustmentCat,
@@ -273,7 +237,7 @@ fig_actuarial <- ggplot(
   )
 ) +
   geom_point(size=2) +
-  #geom_vline(xintercept = 40, linetype = "dashed", color="gray")+
+  geom_vline(aes(xintercept = turning_point), linetype = "dashed", color="gray")+
   labs(
     x = "\nNumber of years of historical precipitation used in index design",
     y = "Simulated difference in absolute deviation of loss ratio form 1 between full history\nand alternate history range (Measured in percentage points)\n"
@@ -300,55 +264,16 @@ ggsave(file.path("data-raw/output/figure","threshold_actuarial.png"),
 
 #-------------------------------------------------------------------------------
 # Plot - economic  analysis                                                  ####
-
-data <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")
-
-data <- data.table::rbindlist(
-  lapply(
-    data[!grepl("200",data)],
-    function(i) {
-      tryCatch({
-        # i <- list.files(output_directory,full.names = TRUE, pattern = "insurance_analysis")[2]
-        data <- readRDS(i)
-        data <- data[!baseline_total_premium_amount %in% c(0,NA,Inf,-Inf,NaN)]
-        data <- data[!alternative_total_premium_amount %in% c(0,NA,Inf,-Inf,NaN)]
-        data <- data[!baseline_indemnity_amount %in% c(NA,Inf,-Inf,NaN)]
-        data <- data[!alternative_indemnity_amount %in% c(NA,Inf,-Inf,NaN)]
-
-        data <- data[
-          , lapply(.SD, function(x) sum(x, na.rm = TRUE)),
-          by = c("index_history_range","adjustment"),
-          .SDcols = c( names(data)[grepl("ceded_|retained_|indifferent_",names(data))])]
-
-        data
-      }, error = function(e){NULL})
-    }),fill = TRUE)
-
-data[,history_range := as.numeric(gsub("[^0-9]","",index_history_range))]
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+data <- as.data.table(readRDS("data-raw/releases/alternative/summary_economic.rds"))
+data <- data[disaggregate %in% "full" & disaggregate_level %in% "full" ]
 
 
-data[,economic_indemnity := (ceded_indemnity)/
-       (retained_indemnity+indifferent_indemnity)]
-
-data[,ceded_lr    := (ceded_indemnity)/(ceded_premium)]
-data[,retained_lr := (indifferent_indemnity+retained_indemnity)/(indifferent_premium+retained_premium)]
-data[,economic_lr := ceded_lr/retained_lr]
-
-
-data[
-  ,adjustmentCat := factor(
-    adjustment,
-    levels = 0:3,
-    labels = c("Unadjusted",
-               "Adjusted for RMA Rate Discretion",
-               "Adjusted for RMA Index Discretion",
-               "Adjusted for RMA Index and Rate Discretion") )
-]
 
 fig_actuarial <- ggplot(
-  data[history_range >= 20],
+  data[history_years >= 20],
   aes(
-    x     = history_range,
+    x     = history_years,
     y     = economic_lr,
     fill  = adjustmentCat,
     color  = adjustmentCat,
@@ -356,7 +281,7 @@ fig_actuarial <- ggplot(
   )
 ) +
   geom_point(size=2) +
-  #geom_vline(xintercept = 40, linetype = "dashed", color="gray")+
+  geom_vline(aes(xintercept = turning_point), linetype = "dashed", color="gray")+
   labs(
     x = "\nNumber of years of historical precipitation used in index design",
     y = "\n"
@@ -380,100 +305,6 @@ fig_actuarial <- ggplot(
 
 ggsave(file.path("data-raw/output/figure","threshold_economic.png"),
        fig_actuarial, dpi = 600,width = 8, height =6)
-
-
-
-ggplot(
-  data,
-  aes(
-    x     = history_range,
-    y     = economic_lr,
-    fill  = adjustmentCat,
-    color  = adjustmentCat,
-    group = adjustmentCat
-  )
-) + geom_point()
-
-
-
-
-#-------------------------------------------------------------------------------
-# Plot - Revenue  analysis                                                   ####
-rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
-data <- list.files(output_directory,full.names = TRUE, pattern = "revenue_analysis")
-
-data <- data.table::rbindlist(
-  lapply(
-    data[!grepl("200",data)],
-    function(i) {
-      tryCatch({
-        # i <- list.files(output_directory,full.names = TRUE, pattern = "revenue_analysis")[2]
-        data <- readRDS(i)
-
-        data <- data[
-          ,.(mn_none = mean(yield, na.rm=T),
-             sd_none = sd(yield, na.rm=T),
-             ob_none = sum(!yield %in% c(NA,Inf,-Inf,NaN), na.rm=T),
-             mn_base = mean(baseline_revenue, na.rm=T),
-             sd_base = sd(baseline_revenue, na.rm=T),
-             ob_base = sum(!baseline_revenue %in% c(NA,Inf,-Inf,NaN), na.rm=T),
-             mn_altn = mean(alternative_revenue, na.rm=T),
-             sd_altn = sd(alternative_revenue, na.rm=T),
-             ob_altn = sum(!alternative_revenue %in% c(NA,Inf,-Inf,NaN), na.rm=T)),
-          by=c("state_code", "county_code","county_fips","interval_code","coverage_level_percent",
-               "index_history_range","adjustment")]
-
-        data <- data[! ob_none %in%  c(NA,Inf,-Inf,NaN,0)]
-        data <- data[! ob_base %in%  c(NA,Inf,-Inf,NaN,0)]
-        data <- data[! ob_altn %in%  c(NA,Inf,-Inf,NaN,0)]
-        data <- data[ob_none >= 4]
-        data <- data[ob_base >= 4]
-        data <- data[ob_altn >= 4]
-
-        data[,cv_none := sd_none/mn_none]
-        data[,cv_base := sd_base/mn_base]
-        data[,cv_altn := sd_altn/mn_altn]
-
-        data <- data[, Relmean := mn_altn/mn_base]
-        data <- data[, Relcv   := cv_altn/cv_base]
-
-        data <- data[
-          , lapply(.SD, function(x) mean(x, na.rm = TRUE)),
-          by = c("index_history_range","adjustment","interval_code","coverage_level_percent"),
-          .SDcols = c("Relmean","Relcv")]
-
-        data
-      }, error = function(e){NULL})
-    }),fill = TRUE)
-
-data[,history_range := as.numeric(gsub("[^0-9]","",index_history_range))]
-data[,adjustmentCat := as.factor(adjustment)]
-data <- data[interval_code %in% NA]
-data <- data[coverage_level_percent %in% NA]
-data <- data[adjustment %in% 3]
-
-ggplot(
-  data,
-  aes(
-    x     = history_range,
-    y     = Relmean,
-    fill  = adjustmentCat,
-    color = adjustmentCat,
-    group = adjustmentCat
-  )
-) + geom_point()
-
-
-ggplot(
-  data,
-  aes(
-    x     = history_range,
-    y     = Relcv,
-    fill  = adjustmentCat,
-    color  = adjustmentCat,
-    group = adjustmentCat
-  )
-) + geom_point()
 
 #-------------------------------------------------------------------------------
 
