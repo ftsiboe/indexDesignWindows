@@ -313,6 +313,14 @@ upload_assets <- function() {
     "data-raw/output/county_precipitation_trend.rds"
   )
 
+
+  piggyback::pb_upload(
+    "data-raw/output/county_precipitation_trend.rds",
+    repo  = "ftsiboe/indexDesignWindows",
+    tag   = "other",
+    overwrite = TRUE
+  )
+
   invisible(county_precipitation)
 }
 
