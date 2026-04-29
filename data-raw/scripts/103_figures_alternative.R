@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Preliminaries                                                              ####
-rm(list = ls(all = TRUE));library(data.table);library(future.apply);library(rfcipPRF);gc()
+rm(list = ls(all = TRUE));library(data.table);gc()
 devtools::document()
 study_environment <- readRDS("data/study_environment.rds")
 myline <- paste0(rep("---",5),collapse = "")
@@ -29,7 +29,7 @@ colour_palt <- c(
 Keep.List<-c("Keep.List",ls())
 #-------------------------------------------------------------------------------
 # Plot - statistical analysis - area                                         ####
-
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
 data_stats <- list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis")
 
 data_stats <- data.table::rbindlist(
@@ -177,102 +177,15 @@ ggsave(file.path("data-raw/output/figure","statistical_threshold_balance_proport
 
 #-------------------------------------------------------------------------------
 # Plot - statistical analysis - point                                        ####
-
-data_stats <- list.files(output_directory,full.names = TRUE, pattern = "statistical_analysis")
-
-data_stats <- data.table::rbindlist(
-  lapply(
-    data_stats[!grepl("200",data_stats)],
-    function(i) {
-      tryCatch({
-        # i <- data_stats[1]
-        data <- as.data.frame(readRDS(i))
-
-        data <- data[c(xlist,"index_history_range","state_code", "county_code","county_fips","coverage_level","y_level")]
-
-        # data <- data[data$y_level %in% c("alternative_index_adj01" ,"alternative_base_rate_adj03" ,"alternative_payment_factor_adj01"),]
-
-        data$disaggregate <- ifelse(grepl("_index",data$y_level),"Index",NA)
-
-        data$disaggregate <- ifelse(grepl("_base_rate_",data$y_level),
-                                    paste0("Base rate\nat ",data$coverage_level,"%"),
-                                    data$disaggregate)
-
-        data$disaggregate <- ifelse(grepl("_payment_factor_",data$y_level),
-                                    paste0("Payment\nrate at ",data$coverage_level,"%"),
-                                    data$disaggregate)
-
-        # data <- data[
-        #   data$coverage_level %in% 90 |grepl("_index",data$y_level), names(data)
-        # ]
-
-        data <- data |>
-          tidyr::gather(variable, value, xlist)
-        data
-      }, error = function(e){NULL})
-    }),fill = TRUE)
-
-data_stats$variable_name <- factor(
-  data_stats$variable,
-  levels = c("pvalue_mean","pvalue_var","pvalue_kruskal_wallis","pvalue_ks",
-             "pvalue_pearson_cor","pvalue_kendall_cor"),
-  labels = c("Mean equality\nt-test",
-             "F-test of equal\nvariances",
-             "Kruskal-Wallis test\nof equal variances",
-             "Kolmogorov-Smirnov\ntest",
-             "Pearson\ncorrelation",
-             "Kendall's\ntau")
-)
-
-data_stats <- add_break_categories(
-  data = data_stats,
-  variable = "value",
-  break_levels = c(-Inf,0.10,Inf),
-  break_labels = c("Less than 0.10","Greater than 0.10"))
-
-data_stats <- data_stats[!data_stats$value_cat %in% NA,]
-
-disaggregate_list <- unique(data_stats$disaggregate)
-disaggregate_list <- disaggregate_list[order(disaggregate_list)]
-data_stats$disaggregate <- factor(
-  data_stats$disaggregate,
-  levels =  c("Index",disaggregate_list[! disaggregate_list %in% "Index"]))
-
-specifications <- c(
-  "alternative_index"                = "Unadjusted",
-  "alternative_index_adj01"          = "Adjusted for RMA Index Discretion" ,
-  "alternative_base_rate_adj00"      = "Unadjusted",
-  "alternative_base_rate_adj01"      = "Adjusted for RMA Rate Discretion",
-  "alternative_base_rate_adj02"      = "Adjusted for RMA Index Discretion",
-  "alternative_base_rate_adj03"      = "Adjusted for RMA Index and Rate Discretion",
-  "alternative_payment_factor_adj00" = "Unadjusted",
-  "alternative_payment_factor_adj01" = "Adjusted for RMA Index Discretion")
-
-data_stats$specification <- factor(
-  data_stats$y_level,
-  levels = names(specifications),
-  labels = specifications)
-
-data_stats <- as.data.table(data_stats)[
-  variable %in% c("pvalue_mean","pvalue_var","pvalue_kruskal_wallis","pvalue_ks"),
-  .(
-    n = .N
-  ),
-  by = .(index_history_range, disaggregate, variable_name, value_cat, y_level, specification)
-][
-  , prop := n / sum(n),
-  by = .(index_history_range, disaggregate, variable_name, y_level, specification)
-]
-
-data_stats <- as.data.frame(data_stats)
-
-data_stats$history_range <- as.numeric(gsub("[^0-9]","",data_stats$index_history_range))
+rm(list= ls()[!(ls() %in% c(Keep.List))]);gc();gc()
+data_stats <- readRDS("data-raw/releases/alternative/summary_statistical.rds")
+data_stats <- as.data.frame(data_stats[disaggregate %in% "full" & disaggregate_level %in% "full" ])
 
 fig_stats <- ggplot(
   data_stats[data_stats$value_cat %in%c("Less than 0.10") &
-               data_stats$history_range >= 10,],
+               data_stats$history_years >= 10,],
   aes(
-    x     = history_range,
+    x     = history_years,
     y     = prop*100,
     fill  = specification,
     colour = specification,
@@ -281,8 +194,8 @@ fig_stats <- ggplot(
   )
 ) +
   geom_point(size=1) +
-  geom_vline(xintercept = 40, linetype = "dashed", color="gray")+
-  facet_grid(variable_name~disaggregate, scales = "free_y") +
+  geom_vline(aes(xintercept = turning_point), linetype = "dashed", color="gray")+
+  facet_grid(statistic_name~variable, scales = "free_y") +
   labs(
     x = "\nNumber of years of historical precipitation used in index design",
     y = "Percentage of counties with specified p-value less than 0.10\n"
