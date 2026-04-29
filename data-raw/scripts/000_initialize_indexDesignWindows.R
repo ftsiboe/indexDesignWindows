@@ -59,3 +59,17 @@ devtools::build_manual(path = getwd())
 # devtools::test()
 devtools::check()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
