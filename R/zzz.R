@@ -15,7 +15,8 @@
      value_cat ..expected_cols county_fips diag_mean diag_var fitted_log_var
     fitted_var joint_fisher_p_value joint_fisher_stat log_resid_sq
     model_estimator panelid precipitation resid_mean resid_sq residuals
-    sqrt_w state_code term trend var_weight"
+    sqrt_w state_code term trend var_weight benchmark_value distance post_cv post_mean post_sd
+     scaled_turning_point score tolerance turning_point within_tolerance"
 
   if (getRversion() >= "2.15.1") {
     utils::globalVariables(
