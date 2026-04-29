@@ -3,8 +3,8 @@
 rm(list = ls(all = TRUE));library(data.table);gc()
 devtools::document()
 study_environment <- readRDS("data/study_environment.rds")
-output_directory <- "data-raw/releases/summary"
-if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
+# output_directory <- "data-raw/releases/summary"
+# if (!dir.exists(output_directory)) dir.create(output_directory, recursive = TRUE)
 
 alternative_directory <- "data-raw/releases/alternative"
 
@@ -97,7 +97,7 @@ data_stats <- as.data.table(data_stats)
 
 res_disaag <- data.table::rbindlist(
   lapply(
-    names(precipitation_trend)[grepl("_class_",names(precipitation_trend))][1:3],
+    names(precipitation_trend)[grepl("_class_",names(precipitation_trend))],
     function(nm) {
       tryCatch({
 
@@ -161,13 +161,13 @@ res_full[
   .SDcols = c("variable", "statistic_name", "y_level", "specification","disaggregate","disaggregate_level")]
 
 tp_final <- estimate_final_turning_point(
-  data              = res_full,
+  data              = res_full[history_years >= 20],
   outcome           = "prop",
   group_var         = "group_variable",
   x_var             = "history_years",
   benchmark_x       = 60,
   tolerance_grid    = seq(0.01, 0.15, by = 0.005),
-  consecutive_years = 5,
+  consecutive_years = 1,
   penalty_weight    = 0.01)
 
 res_full <- merge(
@@ -176,7 +176,7 @@ res_full <- merge(
   by = "group_variable", all.x = TRUE)[, group_variable:= NULL]
 
 hist(res_full$turning_point)
-saveRDS(as.data.table(res_full),file.path(output_directory,"summary_statistical.rds"))
+saveRDS(as.data.table(res_full),file.path(alternative_directory,"summary_statistical.rds"))
 
 #-------------------------------------------------------------------------------
 # Actuarial summary                                                          ####
@@ -258,13 +258,13 @@ data_actuarial[
   .SDcols = c("adjustment","disaggregate","disaggregate_level")]
 
 tp_final <- estimate_final_turning_point(
-  data              = data_actuarial,,
+  data              = data_actuarial[history_years >= 20],,
   outcome           = "actuarial_index",
   group_var         = "group_variable",
   x_var             = "history_years",
   benchmark_x       = 60,
   tolerance_grid    = seq(0.01, 0.15, by = 0.005),
-  consecutive_years = 5,
+  consecutive_years = 1,
   penalty_weight    = 0.01)
 
 data_actuarial <- merge(
@@ -272,7 +272,7 @@ data_actuarial <- merge(
   tp_final[, c("group_variable","turning_point"), with = FALSE],
   by = "group_variable", all.x = TRUE)[, group_variable:= NULL]
 
-saveRDS(as.data.table(data_actuarial),file.path(output_directory,"summary_actuarial.rds"))
+saveRDS(as.data.table(data_actuarial),file.path(alternative_directory,"summary_actuarial.rds"))
 
 #-------------------------------------------------------------------------------
 # Economic summary                                                           ####
@@ -354,13 +354,13 @@ data[
   .SDcols = c("adjustment","disaggregate","disaggregate_level")]
 
 tp_final <- estimate_final_turning_point(
-  data              = data,,
+  data              = data[history_years >= 20],
   outcome           = "economic_lr",
   group_var         = "group_variable",
   x_var             = "history_years",
   benchmark_x       = 60,
   tolerance_grid    = seq(0.01, 0.15, by = 0.005),
-  consecutive_years = 5,
+  consecutive_years = 1,
   penalty_weight    = 0.01)
 
 data <- merge(
@@ -368,13 +368,14 @@ data <- merge(
   tp_final[, c("group_variable","turning_point"), with = FALSE],
   by = "group_variable", all.x = TRUE)[, group_variable:= NULL]
 
-saveRDS(as.data.table(data),file.path(output_directory,"summary_economic.rds"))
+saveRDS(as.data.table(data),file.path(alternative_directory,"summary_economic.rds"))
 
 #-------------------------------------------------------------------------------
 
 piggyback::pb_upload(
-  list.files(output_directory, full.names = TRUE, recursive = T),
+  list.files(alternative_directory,full.names = TRUE, pattern = "summary_"),
   repo  = "ftsiboe/indexDesignWindows",
   tag   = "alternative",
   overwrite = TRUE
 )
+
