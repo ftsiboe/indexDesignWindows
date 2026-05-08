@@ -160,15 +160,24 @@ res_full[
   group_variable := do.call(paste, c(.SD, sep = "_xx_")),
   .SDcols = c("variable", "statistic_name", "y_level", "specification","disaggregate","disaggregate_level")]
 
-tp_final <- estimate_final_turning_point(
-  data              = res_full[history_years >= 20],
-  outcome           = "prop",
-  group_var         = "group_variable",
-  x_var             = "history_years",
-  benchmark_x       = 60,
-  tolerance_grid    = seq(0.01, 0.15, by = 0.005),
-  consecutive_years = 1,
-  penalty_weight    = 0.01)
+tp_final <- estimate_turning_point_sd(
+  data          = res_full[history_years >= 20],
+  outcome       = "prop",
+  x_var         = "history_years",
+  group_var     = "group_variable",
+  direction     = "min",
+  sd_multiplier = 1
+)
+
+# tp_final <- estimate_final_turning_point(
+#   data              = res_full[history_years >= 20],
+#   outcome           = "prop",
+#   group_var         = "group_variable",
+#   x_var             = "history_years",
+#   benchmark_x       = 60,
+#   tolerance_grid    = seq(0.01, 0.15, by = 0.005),
+#   consecutive_years = 1,
+#   penalty_weight    = 0.01)
 
 res_full <- merge(
   res_full,
